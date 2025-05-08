@@ -1,0 +1,59 @@
+{
+  "builder_name": "parquet",
+  "citation": "",
+  "config_name": "default",
+  "dataset_name": "mental_health_data",
+  "dataset_size": 1364224629,
+  "description": "",
+  "download_checksums": {
+    "hf://datasets/YvvonM/mental_health_data@a421da030428dd1c998bc06c8a5e0c4b835f47fd/data/train-00000-of-00003.parquet": {
+      "num_bytes": 151126054,
+      "checksum": null
+    },
+    "hf://datasets/YvvonM/mental_health_data@a421da030428dd1c998bc06c8a5e0c4b835f47fd/data/train-00001-of-00003.parquet": {
+      "num_bytes": 175772397,
+      "checksum": null
+    },
+    "hf://datasets/YvvonM/mental_health_data@a421da030428dd1c998bc06c8a5e0c4b835f47fd/data/train-00002-of-00003.parquet": {
+      "num_bytes": 152365928,
+      "checksum": null
+    }
+  },
+  "download_size": 479264379,
+  "features": {
+    "Instruction": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "Input": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "Response": {
+      "dtype": "string",
+      "_type": "Value"
+    }
+  },
+  "homepage": "",
+  "license": "",
+  "size_in_bytes": 1843489008,
+  "splits": {
+    "train": {
+      "name": "train",
+      "num_bytes": 1364224629,
+      "num_examples": 1762784,
+      "shard_lengths": [
+        677595,
+        600595,
+        484594
+      ],
+      "dataset_name": "mental_health_data"
+    }
+  },
+  "version": {
+    "version_str": "0.0.0",
+    "major": 0,
+    "minor": 0,
+    "patch": 0
+  }
+}
