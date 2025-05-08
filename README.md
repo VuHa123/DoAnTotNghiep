@@ -1,85 +1,116 @@
-# Chatbot Tâm Lý - LLaMA-3.2-1B (Demo)
+
+# Chatbot Tư vấn Tâm lý
 
 ## Giới thiệu
 Đây là một dự án chatbot hỗ trợ tâm lý được xây dựng bằng mô hình ngôn ngữ lớn LLaMA-3.2-1B và Gemini. Mục tiêu của dự án là tạo ra một hệ thống chatbot giúp hỗ trợ người dùng trong việc đối mặt với stress và các vấn đề tâm lý khác. Hệ thống sử dụng các mô hình ngôn ngữ hiện đại để cung cấp các phản hồi đồng cảm và có tính chất hỗ trợ.
 
-## Cấu trúc thư mục
+## 🚀 Tính năng
 
+* **Semantic Search**: Tìm phản hồi gần nhất từ tập Q\&A gốc.
+* **Generative Model**: Sinh phản hồi mới khi không có câu trả lời tương tự.
+* **Phân loại cảm xúc**: Nhãn 3 lớp (Normal, Anxiety, Depression), gộp suicidal vào Depression.
+* **Gợi ý hành động**: Đề xuất phương pháp hỗ trợ phù hợp với từng trạng thái.
+* **Giao diện Gradio**: Cho phép chọn mô hình (Llama hoặc Gemini), hiển thị lịch sử trò chuyện và lưu log.
+
+## 📁 Cấu trúc thư mục
+
+```bash
 project_root/
-├── app.py
-├── .env
-├── README.md
-├── requirements.txt
+├── app.py                     # Giao diện Gradio
+├── .env                       # Biến môi trường: HF_TOKEN, GEMINI_API_KEY
+├── README.md                  # Hướng dẫn sử dụng
+├── requirements.txt           # Các thư viện cần cài đặt
 ├── data/
-│   └── conversations.json
+│   ├── conversations.json     # Dữ liệu Q&A gốc (~950k cặp)
+│   └── demo_1000.json         # 1000 mẫu demo đã gán nhãn
 ├── logs/
-│   └── chat_logs/
+│   └── chat_logs/             # Thư mục lưu log trò chuyện
 ├── models/
 │   ├── __init__.py
 │   ├── llama_model.py
 │   ├── gemini_api.py
-│   ├── model_router.py
-│   └── chatbot_model.py
+│   ├── chatbot_model.py
+│   └── model_router.py
 ├── utils/
 │   ├── __init__.py
+│   ├── data_loader.py
 │   ├── semantic_search.py
-│   ├── logger.py
-│   └── data_loader.py
+│   └── logger.py
+└── scripts/
+    ├── prepare_data.py        # Chuẩn bị demo_1000.json với label
+    ├── finetune_qlora.py      # Fine-tune LLaMA với QLoRA
+    └── run_inference.py       # Chạy inference model fine-tuned
+```
 
+## 💻 Cài đặt
 
-## Các bước cài đặt và chạy dự án
+### 1. Clone repository
 
-### 1. Cài đặt các thư viện yêu cầu
-Trước tiên, bạn cần cài đặt các thư viện cần thiết từ file `requirements.txt`:
+```bash
+git clone <repo_url>
+cd project_root
+```
+
+### 2. Tạo virtual environment
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+### 3. Cài đặt dependencies
 
 ```bash
 pip install -r requirements.txt
+```
 
-### 2. Cấu hình môi trường
-Tạo một file .env trong thư mục gốc của dự án và thêm token HuggingFace API của bạn vào file
-Trước tiên, bạn cần cài đặt các thư viện cần thiết từ 
+### 4. Cấu hình biến môi trường
 
-### 3. Chạy ứng dụng
-Chạy ứng dụng Gradio để khởi động giao diện chatbot:
+Tạo file `.env` với nội dung:
+
+```ini
+HF_TOKEN=your_huggingface_token_here
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+## 📊 Chạy demo local
+
+### 1. Chuẩn bị dữ liệu demo
+
+```bash
+python scripts/prepare_data.py
+```
+
+### 2. Fine-tune mô hình (tùy chọn)
+
+```bash
+python scripts/finetune_qlora.py
+```
+
+### 3. Chạy giao diện Gradio
+
 ```bash
 python app.py
+```
 
-Ứng dụng sẽ mở trong trình duyệt của bạn, cho phép bạn trò chuyện với chatbot hỗ trợ tâm lý.
+### 4. Sử dụng
 
-### 4. Cấu trúc các module
-app.py: Đây là file chính để chạy ứng dụng Gradio. Nó sẽ tạo giao diện người dùng và liên kết các hàm xử lý từ chatbot_model.py.
+* Nhập tin nhắn, chọn mô hình Llama hoặc Gemini.
+* Xem phản hồi, nhãn cảm xúc và gợi ý hành động.
+* Lịch sử trò chuyện sẽ hiển thị.
+* Nhấn **Lưu lại buổi trò chuyện** để ghi log.
 
-models/:
+## 🔧 Triển khai
 
-llama_model.py: Chứa các hàm để xử lý phản hồi từ mô hình LLaMA.
+* Dễ dàng deploy lên HuggingFace Spaces hoặc server riêng.
+* Đóng gói Docker bằng cách tạo `Dockerfile` và `docker-compose.yml`.
 
-gemini_api.py: Chứa các hàm để xử lý phản hồi từ mô hình Gemini.
+## 🎓 Nâng cao
 
-model_router.py: Chịu trách nhiệm chọn lựa mô hình cần sử dụng dựa trên input từ người dùng.
+* Huấn luyện mô hình phân loại riêng để tăng độ chính xác.
+* Mở rộng nhãn (ví dụ: Stress, Loneliness).
+* Tích hợp chatbot vào website hoặc ứng dụng di động.
 
-utils/:
+---
 
-semantic_search.py: Xử lý tìm kiếm câu trả lời phù hợp từ dữ liệu đã lưu.
-
-logger.py: Ghi lại lịch sử trò chuyện vào file JSON trong thư mục logs/chat_logs/.
-
-### 5. Lịch sử trò chuyện
-Mỗi khi người dùng trò chuyện với chatbot, lịch sử trò chuyện sẽ được lưu vào thư mục logs/chat_logs/ dưới dạng file JSON. Mỗi file có tên theo timestamp, ví dụ: conversation_2025-04-16_12-30-45.json.
-
-### 6. Cập nhật mô hình
-Hiện tại, hệ thống hỗ trợ 2 mô hình chính:
-
-LLaMA-3.2-1B: Được tải từ HuggingFace.
-
-Gemini: Mô hình API được tích hợp sẵn.
-
-Mô hình được lựa chọn tự động qua tham số model_name trong hàm get_response.
-
-### 7. Thêm mô hình mới
-Để thêm mô hình mới vào hệ thống, bạn cần thực hiện các bước sau:
-
-Tạo một file mới trong thư mục models/, ví dụ: new_model.py.
-
-Thêm hàm xử lý phản hồi trong file này.
-
-Cập nhật model_router.py để hỗ trợ mô hình mới.
+**Liên hệ**: \[Your Name] – Email: [your\_email@example.com](mailto:your_email@example.com)
