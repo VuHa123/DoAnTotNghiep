@@ -1,0 +1,5 @@
+transformers
+sentence-transformers
+torch
+gradio
+python-dotenv
