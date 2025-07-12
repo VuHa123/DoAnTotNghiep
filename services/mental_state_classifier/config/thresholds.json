@@ -1,0 +1,9 @@
+{
+    "suicidal": 0.7,
+    "depression": 0.65,
+    "anxiety": 0.6,
+    "bipolar": 0.6,
+    "stress": 0.6,
+    "normal": 0.0, 
+    "personality disorder": 0.7
+}
