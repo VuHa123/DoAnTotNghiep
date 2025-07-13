@@ -115,4 +115,4 @@ exllama/weights/
 
 # Backup files
 *.bak
-*.backup 
+*.backup Notebook/
