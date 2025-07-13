@@ -6,44 +6,70 @@
 
 ## 🚦 Kiến trúc & Flow tổng quan
 
-Chatbot sử dụng **Gating Network (QuickCheck)** để phân tầng rủi ro của từng tin nhắn, từ đó quyết định luồng xử lý phù hợp:
+Hệ thống chatbot được thiết kế với các tầng xử lý rõ ràng, đảm bảo an toàn, cá nhân hóa và phản hồi linh hoạt:
 
 ```mermaid
 flowchart TD
-    A["User Message"] --> B["Gating Network: QuickCheck (20ms)"]
-    B -->|"Low Risk\n🟢 BÌNH THƯỜNG\n(Confidence > 0.9)"| C["Expert 1: Chatbot Gemini (fast)"]
-    B -->|"Medium Risk\n🟡 CÓ VẤN ĐỀ\n(0.5–0.9)"| D["Expert 1 + Expert 2, 3"]
-    B -->|"High Risk\n🔴 KHẨN CẤP\n(< 0.5 hoặc suicidal)"| E["All Experts + Emergency Logic"]
-    C --> F["Phản hồi"]
-    D --> G["Mental State\nSentiment Intensity"]
-    G --> H["Sinh prompt → Gemini"]
-    H --> I["Phản hồi"]
-    E --> J["Notify Support\nSpecial Response"]
-    J --> K["Alert or escalate"]
-
-    %% Chú thích chi tiết từng nhánh
-    B -.-> B1["Gating Network: Phân tích nhanh mức độ rủi ro của message dựa trên model LogisticRegression hoặc tương tự.\nKết quả chia 3 mức: Bình thường, Có vấn đề, Khẩn cấp."]
-    C -.-> C1["Expert 1: Sử dụng Gemini (Google LLM) trả lời nhanh các câu hỏi thông thường, không nhạy cảm."]
-    D -.-> D1["Expert 2, 3: Có thể là các mô hình chuyên biệt về tâm lý, cảm xúc, hoặc kiểm tra sâu hơn.\nKết hợp kết quả với Expert 1 để sinh phản hồi phù hợp."]
-    G -.-> G1["Mental State: Phân tích trạng thái tâm lý.\nSentiment Intensity: Đánh giá cường độ cảm xúc.\nKết quả dùng để xây dựng prompt phù hợp cho LLM."]
-    E -.-> E1["All Experts: Kết hợp mọi mô hình kiểm tra,\nEmergency Logic: Kích hoạt quy trình hỗ trợ khẩn cấp (gọi hotline, cảnh báo nhân viên, v.v.)"]
-    J -.-> J1["Notify Support: Gửi thông báo cho đội ngũ hỗ trợ hoặc chuyên gia.\nSpecial Response: Sinh phản hồi đặc biệt trấn an, hướng dẫn user giữ an toàn."]
-    K -.-> K1["Alert or escalate: Có thể gọi hotline, gửi cảnh báo, hoặc chuyển tiếp cho chuyên gia can thiệp."]
-
-    style C fill:#bff,stroke:#333,stroke-width:2px
-    style D fill:#fffbcc,stroke:#333,stroke-width:2px
-    style E fill:#faa,stroke:#333,stroke-width:2px
-    style F fill:#bff
-    style I fill:#fffbcc
-    style J fill:#faa
-    style K fill:#faa
+    User["Người dùng<br/>(Web/Gradio UI)"]
+    Frontend["Frontend<br/>(Gradio App)"]
+    APIGW["API Gateway<br/>(FastAPI)"]
+    Gating["Gating Router<br/>(QuickCheck)\n(Phân loại mức độ rủi ro)"]
+    Sentiment["Sentiment Analysis\n(Phân tích cảm xúc)"]
+    Mental["Mental State Classifier\n(Phân loại trạng thái tâm thần)"]
+    Emergency["Emergency Handler\n(Xử lý khẩn cấp)"]
+    ModelLLaMA["Model Server<br/>(LLaMA)\n(Chatbot chính)"]
+    ModelGemini["Gemini API<br/>(Fallback)\n(Chatbot dự phòng)"]
+    DB["Database\n(Lưu lịch sử, log, cảnh báo)"]
+    Context["Context Tracking\n(The dõi ngữ cảnh hội thoại)"]
+    Summarizer["Summarization\n(Tóm tắt hội thoại)"]
+    User --> Frontend
+    Frontend --> APIGW
+    APIGW --> Gating
+    Gating -- "Bình thường" --> ModelLLaMA
+    Gating -- "Có vấn đề" --> Sentiment
+    Gating -- "Có vấn đề" --> Mental
+    Gating -- "Khẩn cấp" --> Emergency
+    Sentiment --> ModelLLaMA
+    Mental --> ModelLLaMA
+    Emergency --> ModelLLaMA
+    Emergency --> DB
+    ModelLLaMA -- "Nếu lỗi" --> ModelGemini
+    ModelLLaMA --> APIGW
+    ModelGemini --> APIGW
+    APIGW --> DB
+    Context --> APIGW
+    Summarizer --> APIGW
+    APIGW --> Frontend
+    %% Style
+    style User fill:#fff,stroke:#333,stroke-width:2px
+    style Frontend fill:#fff,stroke:#333,stroke-width:2px
+    style APIGW fill:#fff,stroke:#333,stroke-width:2px
+    style Gating fill:#fff,stroke:#333,stroke-width:2px
+    style Sentiment fill:#fff,stroke:#333,stroke-width:2px
+    style Mental fill:#fff,stroke:#333,stroke-width:2px
+    style Emergency fill:#fff,stroke:#333,stroke-width:2px
+    style ModelLLaMA fill:#fff,stroke:#333,stroke-width:2px
+    style ModelGemini fill:#fff,stroke:#333,stroke-width:2px
+    style DB fill:#fff,stroke:#333,stroke-width:2px
+    style Context fill:#fff,stroke:#333,stroke-width:2px
+    style Summarizer fill:#fff,stroke:#333,stroke-width:2px
 ```
 
-### Giải thích các tầng xử lý:
-- **Gating Network (QuickCheck):** Phân tích nhanh mức độ rủi ro của message, chia 3 mức: Bình thường, Có vấn đề, Khẩn cấp.
-- **Low Risk:** Chỉ dùng Expert 1 (Gemini LLM) trả lời nhanh, phù hợp với các câu hỏi thông thường.
-- **Medium Risk:** Kết hợp nhiều expert (ví dụ: mô hình phân tích tâm lý, cảm xúc) để kiểm tra sâu hơn, sinh prompt cá nhân hóa trước khi gửi Gemini.
-- **High Risk:** Kích hoạt tất cả expert và logic khẩn cấp: cảnh báo, gọi hotline, gửi thông báo cho nhân viên hỗ trợ, sinh phản hồi đặc biệt trấn an user.
+### Chức năng từng module:
+- **Người dùng (Web/Gradio UI):** Giao diện trò chuyện cho người dùng cuối.
+- **Frontend (Gradio App):** Hiển thị hội thoại, gửi/nhận message, hiển thị cảnh báo.
+- **API Gateway (FastAPI):** Trung tâm điều phối, nhận message, gọi các service, trả kết quả về frontend.
+- **Gating Router (QuickCheck):** Phân loại mức độ rủi ro (bình thường, có vấn đề, khẩn cấp) cho từng message.
+- **Sentiment Analysis:** Phân tích cảm xúc, hỗ trợ cá nhân hóa phản hồi.
+- **Mental State Classifier:** Phân loại trạng thái tâm thần, phát hiện dấu hiệu bất thường.
+- **Emergency Handler:** Xử lý khẩn cấp, cảnh báo, gọi hotline, ghi log sự kiện nguy hiểm.
+- **Model Server (LLaMA):** Chatbot chính, sinh phản hồi tự nhiên, thông minh.
+- **Gemini API (Fallback):** Chatbot dự phòng, dùng khi LLaMA lỗi hoặc cần đa dạng nguồn trả lời.
+- **Database:** Lưu lịch sử hội thoại, log, cảnh báo, trạng thái user.
+- **Context Tracking:** Theo dõi ngữ cảnh hội thoại, giúp chatbot trả lời mạch lạc.
+- **Summarization:** Tóm tắt hội thoại, hỗ trợ tổng hợp thông tin cho user hoặc chuyên gia.
+
+> Sơ đồ trên giúp người mới dễ hình dung toàn bộ luồng xử lý và vai trò từng thành phần trong hệ thống chatbot AI hỗ trợ tâm lý.
 
 ---
 
