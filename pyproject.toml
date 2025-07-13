@@ -1,0 +1,7 @@
+[project]
+name = "mental-health-chatbot"
+version = "0.1.0"
+description = "A mental health support chatbot using LLM and FastAPI."
+
+[tool.setuptools.packages.find]
+where = ["."]

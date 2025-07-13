@@ -1,0 +1,497 @@
+================================================================================
+                    HỆ THỐNG TẠO DATASET MULTI-TURN CONVERSATION
+                              CHO CHATBOT SỨC KHỎE TÂM THẦN
+                              (PHIÊN BẢN ĐƠN GIẢN - NOTEBOOK)
+================================================================================
+
+1. TỔNG QUAN HỆ THỐNG
+================================================================================
+
+Hệ thống này được thiết kế để chuyển đổi dữ liệu Q&A đơn giản thành các cuộc 
+hội thoại multi-turn (5-7 lượt) dựa trên trạng thái tâm lý và chiến lược 
+phản hồi. Sử dụng notebook đơn giản để tạo dataset phong phú cho việc 
+fine-tuning chatbot về sức khỏe tâm thần.
+
+2. CẤU TRÚC DỮ LIỆU ĐẦU VÀO
+================================================================================
+
+File CSV cần có các cột sau:
+- question: Câu hỏi của người dùng
+- answer: Câu trả lời của assistant  
+- mental_state: Trạng thái tâm lý (Depression, Anxiety, Stress, Suicidal, Bipolar, Normal)
+- confidence: Độ tin cậy dự đoán trạng thái
+- sentiment_intensity: Cường độ cảm xúc (0-3)
+- conf_intensity: Độ tin cậy cường độ
+- sentiment_strategy: Chiến lược phản hồi (Encourage, Validate, Explore, Empathize)
+- conf_strategy: Độ tin cậy chiến lược
+
+3. SỬ DỤNG CONFIDENCE INTENSITY
+================================================================================
+
+3.1. Ý Nghĩa Của Confidence Intensity:
+- conf_intensity: Độ tin cậy của việc dự đoán cường độ cảm xúc (0-1)
+- Giá trị cao (>0.8): Dự đoán cường độ rất chính xác
+- Giá trị trung bình (0.5-0.8): Dự đoán cường độ khá chính xác
+- Giá trị thấp (<0.5): Dự đoán cường độ không chắc chắn
+
+3.2. Cách Sử Dụng Trong Logic Tạo Conversation:
+
+a) Điều Chỉnh Số Lượt Hội Thoại:
+```python
+# Dựa trên confidence intensity để quyết định số lượt
+if conf_intensity >= 0.8:
+    num_turns = random.randint(6, 8)  # Nhiều lượt hơn cho dự đoán chính xác
+elif conf_intensity >= 0.5:
+    num_turns = random.randint(5, 7)  # Số lượt trung bình
+else:
+    num_turns = random.randint(3, 5)  # Ít lượt hơn cho dự đoán không chắc chắn
+```
+
+b) Điều Chỉnh Chiến Lược Phản Hồi:
+```python
+# Kết hợp confidence intensity với sentiment strategy
+if conf_intensity >= 0.8:
+    # Sử dụng chiến lược gốc với độ tin cậy cao
+    strategy = row['sentiment_strategy']
+elif conf_intensity >= 0.5:
+    # Thêm chiến lược "Explore" để tìm hiểu thêm
+    if row['sentiment_strategy'] != 'Explore':
+        strategy = 'Explore'
+    else:
+        strategy = row['sentiment_strategy']
+else:
+    # Sử dụng chiến lược an toàn "Validate"
+    strategy = 'Validate'
+```
+
+c) Điều Chỉnh Cường Độ Phản Hồi:
+```python
+# Điều chỉnh cường độ phản hồi dựa trên confidence
+if conf_intensity >= 0.8:
+    # Phản hồi mạnh mẽ và trực tiếp
+    response_templates = strong_response_templates
+elif conf_intensity >= 0.5:
+    # Phản hồi cân bằng
+    response_templates = balanced_response_templates
+else:
+    # Phản hồi nhẹ nhàng và cẩn thận
+    response_templates = gentle_response_templates
+```
+
+3.3. Lọc Dữ Liệu Theo Confidence:
+```python
+# Chỉ sử dụng dữ liệu có độ tin cậy cao
+high_confidence_data = data[data['conf_intensity'] >= 0.7]
+
+# Hoặc tạo trọng số cho từng sample
+data['weight'] = data['conf_intensity'] * data['confidence']
+```
+
+3.4. Tạo Templates Theo Confidence Level:
+```python
+# Templates cho confidence cao
+high_conf_templates = {
+    'Depression': [
+        "Tôi thấy rõ ràng bạn đang trải qua trầm cảm. Hãy chia sẻ thêm.",
+        "Dựa trên những gì bạn mô tả, đây là dấu hiệu của trầm cảm.",
+        "Tôi tin chắc rằng bạn cần được hỗ trợ chuyên môn."
+    ]
+}
+
+# Templates cho confidence thấp
+low_conf_templates = {
+    'Depression': [
+        "Có vẻ như bạn đang gặp khó khăn. Bạn có thể chia sẻ thêm không?",
+        "Tôi muốn hiểu rõ hơn về tình huống của bạn.",
+        "Hãy cùng tìm hiểu xem điều gì đang xảy ra."
+    ]
+}
+```
+
+4. FILE CHÍNH: simple_multi_turn_generator.ipynb
+================================================================================
+
+Notebook này chứa tất cả logic cần thiết để tạo dataset multi-turn conversation:
+
+4.1. Các Cell Chính:
+- Cell 1: Import thư viện (pandas, json, random, datetime, os)
+- Cell 2: Load và chuẩn bị dữ liệu
+- Cell 3: Tạo templates cho cuộc hội thoại
+- Cell 4: Hàm tạo cuộc hội thoại multi-turn (có sử dụng confidence intensity)
+- Cell 5: Tạo dataset
+- Cell 6: Lưu dataset
+- Cell 7: Tạo format cho fine-tuning
+- Cell 8: Tạo CSV cho dễ sử dụng
+- Cell 9: Tóm tắt kết quả
+
+4.2. Tính Năng Đặc Biệt:
+- Tự động tạo dữ liệu mẫu nếu không có file merged
+- Templates có sẵn cho 6 trạng thái tâm lý
+- Sử dụng confidence intensity để điều chỉnh logic
+- Tạo 3 format output khác nhau
+- Dễ dàng tùy chỉnh và test
+
+5. TEMPLATES CHO CUỘC HỘI THOẠI
+================================================================================
+
+5.1. Templates Theo Trạng Thái Tâm Lý:
+
+a) DEPRESSION:
+- "Bạn có thể chia sẻ thêm về cảm giác này không?"
+- "Điều gì khiến bạn cảm thấy như vậy?"
+- "Bạn đã thử cách nào để cải thiện tâm trạng chưa?"
+- "Có ai trong cuộc sống mà bạn có thể tin tưởng để chia sẻ không?"
+- "Bạn có nghĩ rằng việc tìm kiếm sự giúp đỡ chuyên môn sẽ có ích không?"
+- "Bạn có cảm thấy có hy vọng về tương lai không?"
+- "Điều gì khiến bạn cảm thấy tốt hơn một chút?"
+
+b) ANXIETY:
+- "Bạn có thể mô tả cụ thể hơn về những lo lắng này không?"
+- "Điều gì khiến bạn cảm thấy căng thẳng nhất?"
+- "Bạn có thường xuyên gặp những triệu chứng này không?"
+- "Bạn đã thử kỹ thuật thở hoặc thiền định chưa?"
+- "Có tình huống nào khiến bạn cảm thấy bình tĩnh hơn không?"
+- "Bạn có thể mô tả cụ thể hơn về những lo lắng này không?"
+- "Điều gì khiến bạn cảm thấy an toàn?"
+
+c) STRESS:
+- "Áp lực nào đang ảnh hưởng đến bạn nhiều nhất?"
+- "Bạn có thể chia sẻ về công việc hoặc cuộc sống hiện tại không?"
+- "Bạn có thời gian để nghỉ ngơi và thư giãn không?"
+- "Điều gì giúp bạn giảm stress hiệu quả nhất?"
+- "Bạn có cân bằng được giữa công việc và cuộc sống không?"
+- "Bạn có thể chia sẻ thêm về tình huống này không?"
+- "Điều gì khiến tình huống này trở nên khó khăn?"
+
+d) SUICIDAL:
+- "Tôi rất quan tâm đến sự an toàn của bạn. Bạn có thể nói chuyện với tôi không?"
+- "Bạn có kế hoạch cụ thể nào không? Điều này rất quan trọng."
+- "Có ai mà bạn có thể tin tưởng để nói chuyện trực tiếp không?"
+- "Bạn có thể hứa với tôi rằng sẽ không làm điều gì nguy hiểm không?"
+- "Tôi muốn bạn liên hệ ngay với đường dây khủng hoảng hoặc bác sĩ."
+- "Tôi thấy bạn đang trải qua điều này rất sâu sắc. Bạn có thể chia sẻ thêm không?"
+- "Điều này có ảnh hưởng đến cuộc sống hàng ngày của bạn không?"
+
+e) BIPOLAR:
+- "Bạn có nhận thấy sự thay đổi tâm trạng theo chu kỳ không?"
+- "Có thời điểm nào bạn cảm thấy năng lượng rất cao không?"
+- "Bạn có gặp khó khăn trong việc ngủ không?"
+- "Bạn đã được chẩn đoán hoặc điều trị trước đây chưa?"
+- "Có ai trong gia đình có tình trạng tương tự không?"
+- "Bạn có thể chia sẻ thêm về điều này không?"
+- "Điều gì khiến bạn quan tâm đến vấn đề này?"
+
+f) NORMAL:
+- "Bạn có thể chia sẻ thêm về cuộc sống hàng ngày không?"
+- "Điều gì khiến bạn cảm thấy hạnh phúc nhất?"
+- "Bạn có mục tiêu nào đang theo đuổi không?"
+- "Bạn có thói quen nào tốt cho sức khỏe tâm thần không?"
+- "Bạn có muốn tìm hiểu thêm về cách duy trì sức khỏe tâm thần không?"
+- "Bạn có thể chia sẻ thêm về điều này không?"
+- "Điều gì khiến bạn quan tâm nhất?"
+
+5.2. Templates Cho Câu Trả Lời Theo Chiến Lược:
+
+a) ENCOURAGE (Khuyến khích):
+- "Tôi tin rằng bạn có khả năng vượt qua điều này. Hãy tiếp tục chia sẻ với tôi."
+- "Bạn đã làm rất tốt khi mở lòng. Điều này cho thấy sự dũng cảm của bạn."
+- "Tôi thấy sự tiến bộ trong cách bạn đối phó với tình huống này."
+- "Bạn có thể tiếp tục chia sẻ thêm. Tôi ở đây để lắng nghe."
+- "Tôi tin tưởng vào khả năng phục hồi của bạn."
+
+b) VALIDATE (Xác nhận):
+- "Cảm giác của bạn là hoàn toàn bình thường và hợp lý."
+- "Tôi hiểu tại sao bạn cảm thấy như vậy. Điều này thực sự khó khăn."
+- "Phản ứng của bạn là tự nhiên trong tình huống này."
+- "Tôi thấy được nỗi đau của bạn và tôi tin rằng nó là có thật."
+- "Cảm xúc của bạn là hợp lý và đáng được lắng nghe."
+
+c) EXPLORE (Khám phá):
+- "Hãy cùng khám phá sâu hơn về điều này. Bạn có thể chia sẻ thêm không?"
+- "Tôi muốn hiểu rõ hơn về tình huống này. Bạn có thể mô tả chi tiết hơn không?"
+- "Hãy tìm hiểu thêm về nguyên nhân gốc rễ của vấn đề này."
+- "Tôi muốn hiểu sâu hơn về cảm giác của bạn."
+- "Hãy cùng phân tích tình huống này một cách chi tiết."
+
+d) EMPATHIZE (Đồng cảm):
+- "Tôi có thể cảm nhận được nỗi đau của bạn. Điều này phải rất khó khăn."
+- "Tôi hiểu cảm giác của bạn và tôi ở đây để hỗ trợ bạn."
+- "Tôi thấy được sự đau khổ trong lời nói của bạn."
+- "Tôi cảm thấy nỗi đau của bạn và tôi muốn giúp bạn."
+- "Tôi hiểu điều này phải rất khó khăn đối với bạn."
+
+6. QUY TRÌNH XỬ LÝ
+================================================================================
+
+6.1. Load Dữ Liệu:
+- Tự động load file merged_data.csv nếu có
+- Tạo dữ liệu mẫu nếu không có file
+- Hiển thị thống kê dữ liệu
+- Lọc dữ liệu theo confidence intensity nếu cần
+
+6.2. Tạo Cuộc Hội Thoại Multi-Turn:
+- Lượt đầu tiên: Sử dụng Q&A gốc
+- Các lượt tiếp theo (điều chỉnh theo confidence intensity):
+  + Lấy câu hỏi từ template theo trạng thái
+  + Tạo câu trả lời theo chiến lược (điều chỉnh theo confidence)
+  + Lặp lại nếu hết câu hỏi
+
+6.3. Tạo Dataset:
+- Giới hạn số lượng sample (có thể tùy chỉnh)
+- Tạo metadata cho từng conversation
+- Xử lý lỗi và bỏ qua dòng lỗi
+- Thêm thông tin confidence intensity vào metadata
+
+7. OUTPUT FORMATS
+================================================================================
+
+7.1. JSON Gốc (conversations_YYYYMMDD_HHMMSS.json):
+```json
+{
+  "metadata": {
+    "total_conversations": 100,
+    "created_at": "20241201_143022",
+    "source_data_shape": [100, 8],
+    "max_samples": 100,
+    "confidence_threshold": 0.7
+  },
+  "conversations": [
+    {
+      "conversation_id": "conv_0",
+      "original_question": "Tôi cảm thấy rất buồn...",
+      "original_answer": "Tôi hiểu cảm giác của bạn...",
+      "mental_state": "Depression",
+      "sentiment_intensity": 2.5,
+      "sentiment_strategy": "Empathize",
+      "conf_intensity": 0.85,
+      "conf_strategy": 0.92,
+      "turns": [
+        {
+          "user": "Tôi cảm thấy rất buồn...",
+          "assistant": "Tôi hiểu cảm giác của bạn..."
+        },
+        {
+          "user": "Bạn có thể chia sẻ thêm về cảm giác này không?",
+          "assistant": "Tôi có thể cảm nhận được nỗi đau của bạn..."
+        }
+      ]
+    }
+  ]
+}
+```
+
+7.2. JSON Fine-tuning (finetune_data_YYYYMMDD_HHMMSS.json):
+```json
+[
+  {
+    "instruction": "Bạn là một chatbot hỗ trợ sức khỏe tâm thần...",
+    "input": "Tôi cảm thấy rất buồn...",
+    "output": "User: Tôi cảm thấy rất buồn...\nAssistant: Tôi hiểu cảm giác của bạn...\nUser: Bạn có thể chia sẻ thêm về cảm giác này không?\nAssistant: Tôi có thể cảm nhận được nỗi đau của bạn...",
+    "metadata": {
+      "conversation_id": "conv_0",
+      "mental_state": "Depression",
+      "sentiment_strategy": "Empathize",
+      "conf_intensity": 0.85,
+      "num_turns": 6
+    }
+  }
+]
+```
+
+7.3. CSV Đơn Giản (finetune_data_YYYYMMDD_HHMMSS.csv):
+```csv
+prompt,completion,mental_state,sentiment_strategy,conf_intensity,num_turns
+"Tôi cảm thấy rất buồn...","User: Tôi cảm thấy rất buồn...\nAssistant: Tôi hiểu cảm giác của bạn...",Depression,Empathize,0.85,6
+```
+
+8. CÁCH SỬ DỤNG NOTEBOOK
+================================================================================
+
+8.1. Chuẩn Bị:
+- Đảm bảo có file merged_data.csv (hoặc để tự tạo mẫu)
+- Mở notebook simple_multi_turn_generator.ipynb
+
+8.2. Chạy Từng Cell:
+1. Cell 1: Import thư viện
+2. Cell 2: Load dữ liệu
+3. Cell 3: Tạo templates
+4. Cell 4: Tạo hàm generate (có sử dụng confidence intensity)
+5. Cell 5: Tạo dataset (có thể thay đổi max_samples)
+6. Cell 6: Lưu dataset
+7. Cell 7: Tạo format fine-tuning
+8. Cell 8: Tạo CSV
+9. Cell 9: Xem tóm tắt
+
+8.3. Tùy Chỉnh:
+```python
+# Thay đổi số lượng sample
+max_samples = 100  # hoặc None để chạy toàn bộ
+
+# Thay đổi số lượt hội thoại dựa trên confidence
+if conf_intensity >= 0.8:
+    num_turns = random.randint(6, 8)
+elif conf_intensity >= 0.5:
+    num_turns = random.randint(5, 7)
+else:
+    num_turns = random.randint(3, 5)
+
+# Thay đổi thư mục output
+output_dir = "multi_turn_dataset"
+
+# Lọc theo confidence threshold
+confidence_threshold = 0.7
+filtered_data = data[data['conf_intensity'] >= confidence_threshold]
+```
+
+9. LỢI ÍCH CỦA PHIÊN BẢN NOTEBOOK
+================================================================================
+
+9.1. Đơn Giản:
+- Không cần setup phức tạp
+- Chạy từng cell để kiểm tra
+- Dễ dàng debug và sửa lỗi
+
+9.2. Linh Hoạt:
+- Có thể thay đổi tham số dễ dàng
+- Test với dữ liệu nhỏ trước
+- Xem kết quả ngay lập tức
+- Điều chỉnh logic theo confidence intensity
+
+9.3. Đa Format:
+- Tạo 3 format output khác nhau
+- Phù hợp cho nhiều loại fine-tuning
+- Dễ dàng chuyển đổi format
+
+9.4. Tự Động:
+- Tự tạo dữ liệu mẫu nếu cần
+- Templates có sẵn
+- Xử lý lỗi tự động
+- Tự động điều chỉnh theo confidence
+
+10. VÍ DỤ THỰC TẾ
+================================================================================
+
+10.1. Input (1 dòng CSV):
+```csv
+question,answer,mental_state,conf_intensity,sentiment_intensity,sentiment_strategy
+"Tôi cảm thấy rất buồn","Tôi hiểu cảm giác của bạn",Depression,0.85,2.5,Empathize
+```
+
+10.2. Output (cuộc hội thoại 7 lượt - do confidence cao):
+```json
+{
+  "conversation_id": "conv_0",
+  "original_question": "Tôi cảm thấy rất buồn",
+  "original_answer": "Tôi hiểu cảm giác của bạn",
+  "mental_state": "Depression",
+  "sentiment_intensity": 2.5,
+  "sentiment_strategy": "Empathize",
+  "conf_intensity": 0.85,
+  "turns": [
+    {
+      "user": "Tôi cảm thấy rất buồn",
+      "assistant": "Tôi hiểu cảm giác của bạn"
+    },
+    {
+      "user": "Bạn có thể chia sẻ thêm về cảm giác này không?",
+      "assistant": "Tôi có thể cảm nhận được nỗi đau của bạn. Điều này phải rất khó khăn."
+    },
+    {
+      "user": "Điều gì khiến bạn cảm thấy như vậy?",
+      "assistant": "Hãy cùng khám phá sâu hơn về điều này. Bạn có thể chia sẻ thêm không?"
+    },
+    {
+      "user": "Bạn đã thử cách nào để cải thiện tâm trạng chưa?",
+      "assistant": "Tôi hiểu cảm giác của bạn và tôi ở đây để hỗ trợ bạn."
+    },
+    {
+      "user": "Có ai trong cuộc sống mà bạn có thể tin tưởng để chia sẻ không?",
+      "assistant": "Tôi thấy được sự đau khổ trong lời nói của bạn."
+    },
+    {
+      "user": "Bạn có nghĩ rằng việc tìm kiếm sự giúp đỡ chuyên môn sẽ có ích không?",
+      "assistant": "Tôi hiểu điều này phải rất khó khăn đối với bạn."
+    },
+    {
+      "user": "Bạn có cảm thấy có hy vọng về tương lai không?",
+      "assistant": "Tôi cảm thấy nỗi đau của bạn và tôi muốn giúp bạn."
+    }
+  ]
+}
+```
+
+11. THỐNG KÊ VÀ THEO DÕI
+================================================================================
+
+11.1. Thống Kê Dataset:
+- Tổng số cuộc hội thoại
+- Phân bố theo trạng thái tâm lý
+- Phân bố theo chiến lược phản hồi
+- Trung bình số lượt/conversation
+- Phân bố theo confidence intensity
+- Thống kê confidence threshold
+
+11.2. Files Output:
+- conversations_YYYYMMDD_HHMMSS.json: Dataset gốc
+- finetune_data_YYYYMMDD_HHMMSS.json: Format fine-tuning
+- finetune_data_YYYYMMDD_HHMMSS.csv: CSV đơn giản
+
+11.3. Metadata:
+- Thời gian tạo
+- Số lượng sample gốc
+- Thông tin source data
+- Cấu hình sử dụng
+- Confidence threshold sử dụng
+
+12. TROUBLESHOOTING
+================================================================================
+
+12.1. Lỗi Thường Gặp:
+- File merged_data.csv không tồn tại → Tự động tạo dữ liệu mẫu
+- Lỗi encoding → Sử dụng utf-8
+- Memory error → Giảm max_samples
+- Confidence intensity không hợp lệ → Kiểm tra range (0-1)
+
+12.2. Tối Ưu Hóa:
+- Chạy với dữ liệu nhỏ trước (max_samples = 10)
+- Kiểm tra output format
+- Điều chỉnh templates nếu cần
+- Tinh chỉnh confidence threshold
+
+12.3. Mở Rộng:
+- Thêm templates mới
+- Thay đổi logic generate
+- Tạo format output khác
+- Thêm các metric confidence khác
+
+13. KẾT LUẬN
+================================================================================
+
+Notebook simple_multi_turn_generator.ipynb cung cấp một giải pháp đơn giản 
+và hiệu quả để tạo dataset multi-turn conversation cho chatbot sức khỏe tâm 
+thần. Với tính linh hoạt cao, dễ sử dụng và đa format output, notebook này 
+phù hợp cho việc tạo dataset nhanh chóng để fine-tuning mà không cần setup 
+phức tạp.
+
+Đặc biệt, việc sử dụng confidence intensity giúp:
+- ✅ Tạo cuộc hội thoại phù hợp với độ tin cậy dự đoán
+- ✅ Điều chỉnh số lượt hội thoại theo confidence
+- ✅ Lọc dữ liệu chất lượng cao
+- ✅ Tối ưu hóa chiến lược phản hồi
+- ✅ Tăng chất lượng dataset cho fine-tuning
+
+Ưu điểm chính:
+- ✅ Đơn giản, dễ sử dụng
+- ✅ Tự động xử lý lỗi
+- ✅ Đa format output
+- ✅ Templates có sẵn
+- ✅ Dễ tùy chỉnh
+- ✅ Test nhanh chóng
+- ✅ Sử dụng thông minh confidence intensity
+
+Notebook này là công cụ lý tưởng cho việc tạo dataset multi-turn conversation 
+chất lượng cao để fine-tuning các mô hình AI về sức khỏe tâm thần.
+
+================================================================================
+                                    HẾT
+================================================================================ 

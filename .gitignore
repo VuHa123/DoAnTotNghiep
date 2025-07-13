@@ -1,0 +1,118 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+training.log
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+chatbot.db
+
+# Coverage reports
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Large data files
+*.csv
+*.jsonl
+*.pkl
+*.pickle
+*.h5
+*.hdf5
+*.parquet
+
+# Model files
+*.bin
+*.safetensors
+*.gguf
+*.ggml
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+
+# Temporary files
+*.tmp
+*.temp
+*~
+
+# Environment files
+.env
+token.env
+*.env
+
+# Large installers
+*.sh
+Miniconda3-*.sh
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# Large datasets
+Dataset/
+Notebook/*.csv
+Notebook/*.jsonl
+Notebook/*.pkl
+Notebook/gating_model/
+Notebook/done_set.txt
+
+# Exllama specific
+exllama/models/
+exllama/weights/
+
+# Docker
+.dockerignore
+
+# Backup files
+*.bak
+*.backup 
