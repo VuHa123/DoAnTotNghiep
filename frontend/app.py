@@ -3,7 +3,6 @@
 import gradio as gr
 import requests
 import uuid
-from models.model_router import get_response, end_chat_and_save
 from dotenv import load_dotenv
 load_dotenv("token.env")
 import os
@@ -21,15 +20,13 @@ suggestions = {
 }
 
 def chat_with_bot(user_input, chat_history=[], model_select="llama"):
-    """Enhanced chat function with model selection and emotion detection"""
+    """Chat function chỉ gọi API Gateway, không fallback nội bộ"""
     payload = {
         "user_input": user_input,
         "history": chat_history,
         "session_id": SESSION_ID
     }
-    
     try:
-        # Try API first
         res = requests.post(API_URL, json=payload)
         res.raise_for_status()
         result = res.json()
@@ -37,23 +34,18 @@ def chat_with_bot(user_input, chat_history=[], model_select="llama"):
         emotion_label = result.get("emotion_label", "Normal")
         risk_level = result.get("risk_level", "normal")
         suggestion = suggestions.get(emotion_label, "Hãy tiếp tục chia sẻ cảm xúc của bạn.")
-        
     except Exception as e:
-        # Fallback to local model
-        bot_reply, emotion_label = get_response(user_input, chat_history, model_name=model_select)
-        suggestion = suggestions.get(emotion_label, "")
-        risk_level = "normal"
-    
+        # Không fallback, chỉ báo lỗi cho người dùng
+        bot_reply = "[Lỗi] Hệ thống đang bảo trì hoặc quá tải. Vui lòng thử lại sau."
+        emotion_label = ""
+        suggestion = ""
+        risk_level = ""
     chat_history.append((user_input, bot_reply))
     return "", chat_history, emotion_label, suggestion, risk_level
 
 def save_conversation():
-    """Save current conversation"""
-    try:
-        message, _ = end_chat_and_save([])
-        return message
-    except Exception as e:
-        return f"Lỗi khi lưu: {str(e)}"
+    """Tạm thời vô hiệu hóa lưu hội thoại ở frontend, chỉ thực hiện ở backend qua API Gateway nếu cần"""
+    return "Chức năng lưu hội thoại hiện chỉ hỗ trợ qua hệ thống backend."
 
 def clear_conversation():
     """Clear conversation history"""
