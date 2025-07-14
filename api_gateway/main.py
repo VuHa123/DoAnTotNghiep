@@ -19,6 +19,7 @@ from services.chatbot.bot_service import generate_reply, ChatbotService
 from services.emergency_handler.handler import EmergencyHandler
 from services.context_tracking.tracker import update_context, ContextTracker
 from api_gateway.chatbot_api import router as chatbot_router
+from services.common_schemas import ChatServiceInput, ChatServiceOutput, SentimentOutput, MentalStateOutput, EmergencyOutput
 
 # Cấu hình logging
 logging.basicConfig(level=logging.INFO)
@@ -93,13 +94,25 @@ async def health_check():
 # Main chat endpoint
 @app.post("/chat", response_model=ChatResponse)
 async def handle_chat(req: ChatRequest):
-    """Enhanced chat handler with comprehensive risk assessment"""
+    """
+    Enhanced chat handler with comprehensive risk assessment
+    LƯU Ý: Mọi request chat đều PHẢI routing qua Gating Router trước khi xử lý tiếp!
+    Flow:
+      1. Nhận request từ frontend
+      2. Gọi Gating Router để xác định risk_level (bình thường, có vấn đề, khẩn cấp)
+      3. Tùy risk_level, gọi các service phù hợp (LLaMA, Sentiment, Mental, Emergency...)
+    """
     try:
         logger.info(f"Received chat request: {req.user_input[:50]}...")
-        
-        # Route message through gating network
+        # BƯỚC QUAN TRỌNG: Routing qua Gating Router để xác định risk_level
         risk_level, confidence = router.route(req.user_input)
-        
+        # Chuẩn hóa input cho các service
+        chat_input = ChatServiceInput(
+            user_message=req.user_input,
+            sentiment=None,
+            mental_state=None,
+            risk_level=risk_level
+        )
         if risk_level == "normal":
             # Low risk: use simple prompt
             reply = generate_reply(req.user_input, req.history, sentiment="", mental_state="")
@@ -109,30 +122,27 @@ async def handle_chat(req: ChatRequest):
                 risk_level=risk_level,
                 confidence=confidence
             )
-            
         elif risk_level == "risky":
             # Medium risk: deeper analysis
-            mental_state = detect_mental_state(req.user_input)
-            sentiment = detect_sentiment_label(req.user_input)
-            update_context(req.history, req.user_input, sentiment, mental_state, session_id=req.session_id)
-            reply = generate_reply(req.user_input, req.history, sentiment, mental_state)
+            mental_state_obj = detect_mental_state(req.user_input)
+            sentiment_obj = detect_sentiment_label(req.user_input)
+            update_context(req.history, req.user_input, sentiment_obj.sentiment, mental_state_obj.mental_state, session_id=req.session_id)
+            reply = generate_reply(req.user_input, req.history, sentiment_obj.sentiment, mental_state_obj.mental_state)
             return ChatResponse(
                 bot_response=reply,
                 risk_level=risk_level,
                 confidence=confidence,
-                emotion_label=sentiment
+                emotion_label=sentiment_obj.sentiment
             )
-            
         else:  # emergency
             # High risk: emergency handling
             update_context(req.history, req.user_input, sentiment="emergency", mental_state="emergency", session_id=req.session_id)
             emergency_result = emergency_handler.check_emergency(req.session_id or "anonymous", req.user_input)
             return ChatResponse(
-                bot_response=emergency_result["message"],
+                bot_response=emergency_result.message,
                 risk_level=risk_level,
                 confidence=confidence
             )
-            
     except Exception as e:
         logger.error(f"Error in chat endpoint: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
@@ -143,19 +153,17 @@ async def emergency_endpoint(request: EmergencyRequest):
     """Emergency handling endpoint"""
     try:
         logger.info(f"Emergency request from user: {request.user_id}")
-        
-        result = emergency_handler.handle_emergency(
+        result: EmergencyOutput = emergency_handler.handle_emergency(
             user_id=request.user_id,
             location=request.location,
             contact=request.contact
         )
-        
         return {
-            "status": "emergency_handled",
-            "message": result,
-            "user_id": request.user_id
+            "status": result.status,
+            "message": result.message,
+            "user_id": request.user_id,
+            "action": result.action
         }
-        
     except Exception as e:
         logger.error(f"Error in emergency endpoint: {e}")
         raise HTTPException(status_code=500, detail=f"Emergency handling failed: {str(e)}")

@@ -1,0 +1,50 @@
+{
+  "builder_name": "parquet",
+  "citation": "",
+  "config_name": "default",
+  "dataset_name": "student-mental-health-chat-data-v2",
+  "dataset_size": 678457739,
+  "description": "",
+  "download_checksums": {
+    "hf://datasets/chillies/student-mental-health-chat-data-v2@3319a64f2f0b0f5fc3b6142e1cfaa13c9fe29ad1/data/train-00000-of-00002.parquet": {
+      "num_bytes": 172073969,
+      "checksum": null
+    },
+    "hf://datasets/chillies/student-mental-health-chat-data-v2@3319a64f2f0b0f5fc3b6142e1cfaa13c9fe29ad1/data/train-00001-of-00002.parquet": {
+      "num_bytes": 172225294,
+      "checksum": null
+    }
+  },
+  "download_size": 344299263,
+  "features": {
+    "question": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "answer": {
+      "dtype": "string",
+      "_type": "Value"
+    }
+  },
+  "homepage": "",
+  "license": "",
+  "size_in_bytes": 1022757002,
+  "splits": {
+    "train": {
+      "name": "train",
+      "num_bytes": 678457739,
+      "num_examples": 970421,
+      "shard_lengths": [
+        715211,
+        255210
+      ],
+      "dataset_name": "student-mental-health-chat-data-v2"
+    }
+  },
+  "version": {
+    "version_str": "0.0.0",
+    "major": 0,
+    "minor": 0,
+    "patch": 0
+  }
+}

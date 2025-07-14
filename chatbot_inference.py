@@ -1,0 +1,263 @@
+#!/usr/bin/env python3
+"""
+Chatbot Inference Script
+Sử dụng checkpoint fine-tuned để thực hiện inference
+"""
+
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+import torch
+import logging
+import argparse
+from dotenv import load_dotenv
+from transformers import AutoTokenizer, AutoModelForCausalLM
+from peft.peft_model import PeftModel
+import re
+
+# Load environment variables
+load_dotenv("token.env")
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class ChatbotInference:
+    def __init__(self, checkpoint_name="checkpoint-1000"):
+        """
+        Khởi tạo chatbot inference
+        
+        Args:
+            checkpoint_name: Tên checkpoint (checkpoint-549, checkpoint-1000, hoặc final_model)
+        """
+        self.checkpoint_name = checkpoint_name
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model = None
+        self.tokenizer = None
+        
+        logger.info(f"Using device: {self.device}")
+        logger.info(f"Using checkpoint: {checkpoint_name}")
+        
+    def load_model(self):
+        """Load model và tokenizer"""
+        try:
+            # Model paths
+            base_model_path = "meta-llama/Llama-3.2-1B-Instruct"
+            checkpoint_path = f"models/weights/chatbot_finetuned/{self.checkpoint_name}"
+            
+            # Check if checkpoint exists
+            if not os.path.exists(checkpoint_path):
+                logger.error(f"❌ Checkpoint not found: {checkpoint_path}")
+                return False
+            
+            logger.info(f"✅ Checkpoint found: {checkpoint_path}")
+            
+            # Load base model
+            logger.info("Loading base model...")
+            base_model = AutoModelForCausalLM.from_pretrained(
+                base_model_path,
+                # device_map="auto",
+                torch_dtype=torch.float16,
+                trust_remote_code=True,
+                token=os.getenv("HF_TOKEN")
+            )
+            
+            # Load tokenizer
+            logger.info("Loading tokenizer...")
+            self.tokenizer = AutoTokenizer.from_pretrained(base_model_path, token=os.getenv("HF_TOKEN"))
+            if self.tokenizer.pad_token is None:
+                self.tokenizer.pad_token = self.tokenizer.eos_token
+            
+            # Load LoRA adapter
+            logger.info("Loading LoRA adapter...")
+            self.model = PeftModel.from_pretrained(base_model, checkpoint_path)
+            self.model.eval()
+            self.model = self.model.to(self.device)
+            
+            logger.info("✅ Model loaded successfully!")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Error loading model: {e}")
+            return False
+    
+    def generate_response(self, prompt, max_new_tokens=200, temperature=0.7, top_p=0.9):
+        """
+        Generate response từ prompt
+        
+        Args:
+            prompt: Input prompt
+            max_new_tokens: Số token tối đa generate
+            temperature: Temperature cho generation
+            top_p: Top-p sampling
+            
+        Returns:
+            Generated response
+        """
+        try:
+            if self.model is None or self.tokenizer is None:
+                raise RuntimeError("Model chưa được load. Gọi load_model() trước.")
+            
+            # Format prompt cho mental health chatbot
+            formatted_prompt = f"""### Instruction:
+Bạn là một chatbot hỗ trợ tâm lý chuyên nghiệp. Hãy trả lời người dùng một cách thân thiện, đồng cảm và hữu ích.
+
+### Input:
+{prompt}
+
+### Response:
+"""
+            
+            # Tokenize
+            inputs = self.tokenizer(formatted_prompt, return_tensors="pt", truncation=True, 
+                                  max_length=512, padding=True)
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+            
+            # Generate
+            with torch.no_grad():
+                outputs = self.model.generate(
+                    **inputs,
+                    max_new_tokens=max_new_tokens,
+                    temperature=temperature,
+                    top_p=top_p,
+                    do_sample=True,
+                    pad_token_id=self.tokenizer.eos_token_id,
+                    eos_token_id=self.tokenizer.eos_token_id,
+                    repetition_penalty=1.1
+                )
+            
+            # Decode response
+            response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+            
+            # Extract chỉ phần response
+            if "### Response:" in response:
+                response = response.split("### Response:")[-1].strip()
+            
+            return response
+            
+        except Exception as e:
+            logger.error(f"❌ Error generating response: {e}")
+            return "Xin lỗi, tôi đang gặp sự cố kỹ thuật. Vui lòng thử lại sau."
+    
+    def test_inference(self):
+        """Test inference với các prompt mẫu"""
+        logger.info("🧪 Testing inference...")
+        
+        test_prompts = [
+            "Tôi cảm thấy rất lo lắng về tương lai",
+            "Tôi không muốn sống nữa",
+            "Tôi cảm thấy cô đơn và buồn bã",
+            "Làm sao để tôi có thể vượt qua khó khăn này?",
+            "Tôi đang gặp khó khăn trong mối quan hệ với bạn bè"
+        ]
+        
+        for i, prompt in enumerate(test_prompts, 1):
+            logger.info(f"\n--- Test {i}: {prompt} ---")
+            response = self.generate_response(prompt)
+            logger.info(f"Response: {response}")
+        
+        logger.info("✅ All tests completed successfully!")
+    
+    def interactive_chat(self):
+        """Interactive chat mode"""
+        logger.info("💬 Starting interactive chat...")
+        logger.info("Type 'quit' to exit")
+        logger.info("-" * 50)
+        
+        while True:
+            try:
+                user_input = input("\n👤 You: ").strip()
+                
+                if user_input.lower() in ['quit', 'exit', 'q']:
+                    logger.info("👋 Goodbye!")
+                    break
+                
+                if not user_input:
+                    continue
+                
+                # Generate response
+                response = self.generate_response(user_input)
+                print(f"\n🤖 Bot: {response}")
+                
+            except KeyboardInterrupt:
+                logger.info("\n👋 Goodbye!")
+                break
+            except Exception as e:
+                logger.error(f"❌ Error: {e}")
+
+def list_available_checkpoints():
+    """Liệt kê các checkpoint có sẵn"""
+    checkpoint_dir = "models/weights/chatbot_finetuned"
+    checkpoints = []
+    
+    if os.path.exists(checkpoint_dir):
+        for item in os.listdir(checkpoint_dir):
+            item_path = os.path.join(checkpoint_dir, item)
+            if os.path.isdir(item_path) and item.startswith("checkpoint-"):
+                checkpoints.append(item)
+        
+        # Kiểm tra final_model
+        final_model_path = os.path.join(checkpoint_dir, "final_model")
+        if os.path.exists(final_model_path):
+            checkpoints.append("final_model")
+    
+    return checkpoints
+
+def main():
+    parser = argparse.ArgumentParser(description="Chatbot Inference")
+    parser.add_argument("--checkpoint", type=str, default="checkpoint-1000",
+                       help="Checkpoint name (checkpoint-549, checkpoint-1000, final_model)")
+    parser.add_argument("--test", action="store_true",
+                       help="Run test inference")
+    parser.add_argument("--interactive", action="store_true",
+                       help="Run interactive chat")
+    parser.add_argument("--prompt", type=str,
+                       help="Single prompt for inference")
+    parser.add_argument("--list", action="store_true",
+                       help="List available checkpoints")
+    parser.add_argument("--max_tokens", type=int, default=200,
+                       help="Maximum new tokens to generate")
+    parser.add_argument("--temperature", type=float, default=0.7,
+                       help="Temperature for generation")
+    
+    args = parser.parse_args()
+    
+    # List checkpoints
+    if args.list:
+        checkpoints = list_available_checkpoints()
+        if checkpoints:
+            logger.info("Available checkpoints:")
+            for cp in checkpoints:
+                logger.info(f"  - {cp}")
+        else:
+            logger.warning("No checkpoints found")
+        return
+    
+    # Khởi tạo chatbot
+    chatbot = ChatbotInference(args.checkpoint)
+    
+    # Load model
+    if not chatbot.load_model():
+        logger.error("❌ Failed to load model")
+        return
+    
+    # Chạy theo mode được chọn
+    if args.test:
+        chatbot.test_inference()
+    elif args.interactive:
+        chatbot.interactive_chat()
+    elif args.prompt:
+        response = chatbot.generate_response(
+            args.prompt, 
+            max_new_tokens=args.max_tokens,
+            temperature=args.temperature
+        )
+        logger.info(f"Prompt: {args.prompt}")
+        logger.info(f"Response: {response}")
+    else:
+        # Default: interactive mode
+        chatbot.interactive_chat()
+
+if __name__ == "__main__":
+    main()

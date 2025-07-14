@@ -1,66 +1,52 @@
 # frontend/app.py - Enhanced Mental Health Chatbot Interface
 
 import gradio as gr
-import requests
-import uuid
-from models.model_router import get_response, end_chat_and_save
-from dotenv import load_dotenv
-load_dotenv("token.env")
-import os
-print("HF_TOKEN:", os.environ.get("HF_TOKEN"))
+import sys
+sys.path.append("..")
+from chatbot_inference import ChatbotInference
 
-# API configuration
-API_URL = "http://localhost:8000/chat"
-SESSION_ID = str(uuid.uuid4())
+# Khởi tạo model fine-tune
+chatbot = ChatbotInference(checkpoint_name="checkpoint-549")
+chatbot.load_model()
 
-# Enhanced suggestions based on emotion labels
-suggestions = {
-    "Depression": "👉 Hãy thử viết nhật ký, nghỉ ngơi, hoặc tâm sự với người đáng tin cậy.",
-    "Anxiety": "👉 Bạn có thể thử hít thở sâu, thiền định hoặc nghỉ giải lao ngắn.",
-    "Normal": "👍 Tiếp tục duy trì trạng thái tích cực nhé!"
-}
+# Enhanced suggestions based on emotion labels (tạm thời không dùng)
+suggestions = {}
 
 def chat_with_bot(user_input, chat_history=[], model_select="llama"):
-    """Enhanced chat function with model selection and emotion detection"""
-    payload = {
-        "user_input": user_input,
-        "history": chat_history,
-        "session_id": SESSION_ID
-    }
-    
-    try:
-        # Try API first
-        res = requests.post(API_URL, json=payload)
-        res.raise_for_status()
-        result = res.json()
-        bot_reply = result.get("bot_response", "")
-        emotion_label = result.get("emotion_label", "Normal")
-        risk_level = result.get("risk_level", "normal")
-        suggestion = suggestions.get(emotion_label, "Hãy tiếp tục chia sẻ cảm xúc của bạn.")
-        
-    except Exception as e:
-        # Fallback to local model
-        bot_reply, emotion_label = get_response(user_input, chat_history, model_name=model_select)
-        suggestion = suggestions.get(emotion_label, "")
-        risk_level = "normal"
-    
-    chat_history.append((user_input, bot_reply))
-    return "", chat_history, emotion_label, suggestion, risk_level
+    """Chat trực tiếp với model fine-tune"""
+    response = chatbot.generate_response(user_input)
+    # Đảm bảo chat_history là list các dict đúng format cho Gradio Chatbot
+    if len(chat_history) > 0 and isinstance(chat_history[0], tuple):
+        # Chuyển đổi tuple sang dict (nếu là dữ liệu cũ)
+        chat_history = [
+            {"role": "user", "content": u} if i % 2 == 0 else {"role": "assistant", "content": u}
+            for i, pair in enumerate(chat_history) for u in pair
+        ]
+    # Thêm lượt chat mới
+    chat_history.append({"role": "user", "content": user_input})
+    chat_history.append({"role": "assistant", "content": response})
+    return "", chat_history, "", "", ""
 
 def save_conversation():
-    """Save current conversation"""
-    try:
-        message, _ = end_chat_and_save([])
-        return message
-    except Exception as e:
-        return f"Lỗi khi lưu: {str(e)}"
+    return "Chức năng lưu hội thoại hiện chỉ hỗ trợ qua hệ thống backend."
 
 def clear_conversation():
-    """Clear conversation history"""
     return "", [], "", "", ""
 
 # Enhanced Gradio interface
-with gr.Blocks(title="Chatbot Tư Vấn Tâm Lý", theme=gr.themes.Soft()) as demo:
+with gr.Blocks(
+    title="Chatbot Tư Vấn Tâm Lý",
+    theme=gr.themes.Soft(),
+    css="""
+* { font-family: 'Arial', 'Tahoma', 'Roboto', 'Noto Sans', 'DejaVu Sans', sans-serif !important; }
+textarea, input, .gr-textbox textarea {
+    ime-mode: active !important; /* gợi ý bật bộ gõ IME */
+    font-family: inherit;
+}
+"""
+
+
+) as demo:
     gr.Markdown("""
     # 🤖 Chatbot Hỗ Trợ Tâm Lý
     
@@ -70,7 +56,7 @@ with gr.Blocks(title="Chatbot Tư Vấn Tâm Lý", theme=gr.themes.Soft()) as de
     
     with gr.Row():
         with gr.Column(scale=3):
-            chatbot = gr.Chatbot(label="Trò chuyện", height=400)
+            chatbot_ui = gr.Chatbot(label="Trò chuyện", height=400, type="messages")
             user_input = gr.Textbox(
                 placeholder="Bạn đang cảm thấy như thế nào?",
                 label="Tin nhắn của bạn:",
@@ -95,16 +81,16 @@ with gr.Blocks(title="Chatbot Tư Vấn Tâm Lý", theme=gr.themes.Soft()) as de
     # Event handlers
     user_input.submit(
         chat_with_bot, 
-        [user_input, chatbot, model_select], 
-        [user_input, chatbot, emotion_label, suggestion, risk_level]
+        [user_input, chatbot_ui, model_select], 
+        [user_input, chatbot_ui, emotion_label, suggestion, risk_level]
     )
     send_btn.click(
         chat_with_bot, 
-        [user_input, chatbot, model_select], 
-        [user_input, chatbot, emotion_label, suggestion, risk_level]
+        [user_input, chatbot_ui, model_select], 
+        [user_input, chatbot_ui, emotion_label, suggestion, risk_level]
     )
     save_btn.click(save_conversation, outputs=gr.Textbox(label="Kết quả lưu"))
-    clear_btn.click(clear_conversation, outputs=[user_input, chatbot, emotion_label, suggestion, risk_level])
+    clear_btn.click(clear_conversation, outputs=[user_input, chatbot_ui, emotion_label, suggestion, risk_level])
 
 if __name__ == "__main__":
     demo.launch(server_name="0.0.0.0", server_port=7860, share=False)

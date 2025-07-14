@@ -14,6 +14,7 @@ from services.mental_state_classifier.classifer import detect_mental_state
 from services.gating_router.quick_check import QuickCheckModel
 from services.chatbot.gemini_service import gemini_service
 from services.chatbot.llama_service import llama_service
+from services.common_schemas import ChatServiceInput, ChatServiceOutput, SentimentOutput, MentalStateOutput
 
 logger = logging.getLogger(__name__)
 
@@ -45,127 +46,81 @@ async def chat_endpoint(request: ChatRequest):
     """
     try:
         user_message = request.message
-        
         # 1. Phân tích sentiment
-        sentiment = detect_sentiment_label(user_message)
-        logger.info(f"Sentiment: {sentiment}")
-        
+        sentiment_obj: SentimentOutput = detect_sentiment_label(user_message)
+        logger.info(f"Sentiment: {sentiment_obj}")
         # 2. Phân loại mental state
-        mental_state = detect_mental_state(user_message)
-        logger.info(f"Mental state: {mental_state}")
-        
+        mental_state_obj: MentalStateOutput = detect_mental_state(user_message)
+        logger.info(f"Mental state: {mental_state_obj}")
         # 3. Gating router - đánh giá rủi ro
         risk_proba = gating_model.predict_proba(user_message)
         risk_level = max(risk_proba, key=lambda k: risk_proba[k])
         logger.info(f"Risk level: {risk_level}, Proba: {risk_proba}")
-        
         # 4. Chọn model và gọi API
-        response, source, model_used = await get_response_with_fallback(
+        chat_input = ChatServiceInput(
             user_message=user_message,
-            sentiment=sentiment,
-            mental_state=mental_state,
-            risk_level=risk_level,
+            sentiment=sentiment_obj.sentiment,
+            mental_state=mental_state_obj.mental_state,
+            risk_level=risk_level
+        )
+        response_obj: ChatServiceOutput = await get_response_with_fallback(
+            chat_input=chat_input,
             prefer_model=request.prefer_model
         )
-        
         # 5. Xử lý response và warning
         warning = None
-        
-        # Thêm warning nếu cần
         if risk_level == "emergency":
             warning = "⚠️ KHẨN CẤP: Nếu bạn cần hỗ trợ khẩn cấp, hãy liên hệ hotline 1900xxxx ngay lập tức!"
         elif risk_level == "risky":
             warning = "⚠️ RỦI RO: Bạn có thể cân nhắc liên hệ chuyên gia tâm lý để được hỗ trợ tốt hơn."
-        elif sentiment in ["3", "negative"] and mental_state != "normal":
+        elif sentiment_obj.sentiment in ["3", "negative"] and mental_state_obj.mental_state != "normal":
             warning = "💡 Gợi ý: Hãy thử các hoạt động thư giãn như thiền, tập thể dục, hoặc nói chuyện với người thân."
-        
         return ChatResponse(
-            response=response,
-            sentiment=sentiment,
-            mental_state=mental_state,
+            response=response_obj.response,
+            sentiment=sentiment_obj.sentiment,
+            mental_state=mental_state_obj.mental_state,
             risk_level=risk_level,
-            source=source,
+            source=response_obj.source,
             warning=warning,
-            model_used=model_used
+            model_used=getattr(response_obj, "model_used", None)
         )
-        
     except Exception as e:
         logger.error(f"Error in chat endpoint: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-async def get_response_with_fallback(user_message: str, sentiment: str, 
-                                   mental_state: str, risk_level: str, 
-                                   prefer_model: str = "auto") -> tuple[str, str, str]:
-    """Lấy response với fallback logic"""
-    
-    # Kiểm tra health của LLaMA Model Server
+async def get_response_with_fallback(chat_input: ChatServiceInput, prefer_model: str = "auto") -> ChatServiceOutput:
+    """Lấy response với fallback logic, truyền object schema"""
     llama_health = llama_service.check_server_health()
     llama_available = llama_health["status"] == "healthy" and llama_health.get("model_loaded", False)
-    
     logger.info(f"LLaMA server health: {llama_health}")
     logger.info(f"Prefer model: {prefer_model}")
-    
-    # Logic chọn model
     if prefer_model == "llama" and llama_available:
-        # Thử LLaMA trước
-        llama_result = llama_service.get_response(
-            user_message=user_message,
-            sentiment=sentiment,
-            mental_state=mental_state,
-            risk_level=risk_level
-        )
-        
-        if llama_result["success"]:
-            return llama_result["response"], llama_result["source"], "llama"
+        llama_result: ChatServiceOutput = llama_service.get_response(chat_input)
+        if llama_result.success:
+            return llama_result
         else:
             logger.warning("LLaMA failed, falling back to Gemini")
-            
     elif prefer_model == "gemini":
-        # Chỉ dùng Gemini
-        gemini_result = gemini_service.get_response(
-            user_message=user_message,
-            sentiment=sentiment,
-            mental_state=mental_state,
-            risk_level=risk_level
-        )
-        
-        if gemini_result["success"]:
-            return gemini_result["response"], gemini_result["source"], "gemini"
+        gemini_result: ChatServiceOutput = gemini_service.get_response(chat_input)
+        if gemini_result.success:
+            return gemini_result
         else:
             logger.warning("Gemini failed")
-            return "Xin lỗi, tôi đang gặp sự cố kỹ thuật.", "fallback", "none"
-    
+            return ChatServiceOutput(success=False, response="Xin lỗi, tôi đang gặp sự cố kỹ thuật.", source="fallback")
     else:  # prefer_model == "auto"
-        # Auto logic: thử LLaMA trước, fallback về Gemini
         if llama_available:
-            llama_result = llama_service.get_response(
-                user_message=user_message,
-                sentiment=sentiment,
-                mental_state=mental_state,
-                risk_level=risk_level
-            )
-            
-            if llama_result["success"]:
-                return llama_result["response"], llama_result["source"], "llama"
+            llama_result: ChatServiceOutput = llama_service.get_response(chat_input)
+            if llama_result.success:
+                return llama_result
             else:
                 logger.warning("LLaMA failed, falling back to Gemini")
-        
-        # Fallback to Gemini
-        gemini_result = gemini_service.get_response(
-            user_message=user_message,
-            sentiment=sentiment,
-            mental_state=mental_state,
-            risk_level=risk_level
-        )
-        
-        if gemini_result["success"]:
-            return gemini_result["response"], gemini_result["source"], "gemini"
+        gemini_result: ChatServiceOutput = gemini_service.get_response(chat_input)
+        if gemini_result.success:
+            return gemini_result
         else:
             logger.error("Both LLaMA and Gemini failed")
-            return "Xin lỗi, tôi đang gặp sự cố kỹ thuật.", "fallback", "none"
-    
-    # Final fallback
-    return "Xin lỗi, tôi đang gặp sự cố kỹ thuật.", "fallback", "none"
+            return ChatServiceOutput(success=False, response="Xin lỗi, tôi đang gặp sự cố kỹ thuật.", source="fallback")
+    return ChatServiceOutput(success=False, response="Xin lỗi, tôi đang gặp sự cố kỹ thuật.", source="fallback")
 
 @router.get("/api-stats")
 async def get_api_stats():
