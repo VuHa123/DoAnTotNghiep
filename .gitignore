@@ -116,3 +116,5 @@ exllama/weights/
 # Backup files
 *.bak
 *.backup Notebook/
+models/weights/gating_router/best_model/model.safetensors
+models/weights/phobert-base/
