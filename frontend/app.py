@@ -6,7 +6,7 @@ sys.path.append("..")
 from chatbot_inference import ChatbotInference
 
 # Khởi tạo model fine-tune
-chatbot = ChatbotInference(checkpoint_name="checkpoint-549")
+chatbot = ChatbotInference(checkpoint_name="checkpoint-1098")
 chatbot.load_model()
 
 # Enhanced suggestions based on emotion labels (tạm thời không dùng)

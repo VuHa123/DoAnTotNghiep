@@ -2,10 +2,11 @@ import os
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from services.common_schemas import SentimentOutput
+from services.chatbot.bot_service import generate_reply
 
 # Đường dẫn model
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-MODEL_DIR = os.path.join(BASE_DIR, "models", "weights", "sentiment")
+MODEL_DIR = "/home/aero/DoAnTotNghiep/models/weights/sentiment"
 
 # Nếu bạn muốn dùng nhãn thay vì chỉ số
 LABELS = ["0", "1", "2", "3"]  # Hoặc ["nhẹ", "trung bình", "nặng", "khẩn cấp"]

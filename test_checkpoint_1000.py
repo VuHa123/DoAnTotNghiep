@@ -28,7 +28,7 @@ def test_checkpoint_1000():
         
         # Model paths
         base_model_path = "meta-llama/Llama-3.2-1B-Instruct"
-        checkpoint_path = "models/weights/chatbot_finetuned/checkpoint-1000"
+        checkpoint_path = "models/weights/chatbot_finetuned/checkpoint-1098"
         
         # Check if checkpoint exists
         if not os.path.exists(checkpoint_path):
@@ -129,7 +129,7 @@ def test_merge_checkpoint():
             base_model_path="meta-llama/Llama-3.2-1B-Instruct",
             checkpoint_path="models/weights/chatbot_finetuned",
             output_path="models/weights/chatbot_finetuned/final_model",
-            checkpoint_name="checkpoint-1000"
+            checkpoint_name="checkpoint-1098"
         )
         
         if success:

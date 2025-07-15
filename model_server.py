@@ -67,7 +67,7 @@ def load_model():
         
         # Model paths
         base_model_path = "models/weights/base_model/meta-llama/Llama-3.2-1B-Instruct"
-        checkpoint_path = "models/weights/chatbot_finetuned/checkpoint-549"
+        checkpoint_path = "models/weights/chatbot_finetuned/checkpoint-1098"
         
         # Check if checkpoint exists
         if os.path.exists(checkpoint_path):

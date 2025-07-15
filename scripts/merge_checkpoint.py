@@ -22,7 +22,7 @@ def merge_checkpoint_to_final_model(
     base_model_path: str,
     checkpoint_path: str,
     output_path: str,
-    checkpoint_name: str = "checkpoint-1000"
+    checkpoint_name: str = "checkpoint-1098"
 ):
     """
     Merge checkpoint thành final model
@@ -31,7 +31,7 @@ def merge_checkpoint_to_final_model(
         base_model_path: Đường dẫn đến base model
         checkpoint_path: Đường dẫn đến thư mục checkpoint
         output_path: Đường dẫn output cho final model
-        checkpoint_name: Tên checkpoint cụ thể (checkpoint-549 hoặc checkpoint-1000)
+        checkpoint_name: Tên checkpoint cụ thể (checkpoint-549 hoặc checkpoint-1098)
     """
     
     try:
@@ -145,8 +145,8 @@ def main():
                        help="Path to checkpoint directory")
     parser.add_argument("--output_path", type=str, default="models/weights/chatbot_finetuned/final_model",
                        help="Output path for final model")
-    parser.add_argument("--checkpoint_name", type=str, default="checkpoint-1000",
-                       help="Specific checkpoint name (checkpoint-549 or checkpoint-1000)")
+    parser.add_argument("--checkpoint_name", type=str, default="checkpoint-10",
+                       help="Specific checkpoint name (checkpoint-549 or checkpoint-1098)")
     parser.add_argument("--list_checkpoints", action="store_true",
                        help="List available checkpoints")
     

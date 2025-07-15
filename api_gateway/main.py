@@ -15,9 +15,9 @@ sys.path.append(str(Path(__file__).parent.parent))
 from services.gating_router.router import MessageRouter
 from services.mental_state_classifier.classifer import detect_mental_state
 from services.setiment_analysis.analyzer import detect_sentiment_label
-from services.chatbot.bot_service import generate_reply, ChatbotService
+from services.chatbot.bot_service import generate_reply
 from services.emergency_handler.handler import EmergencyHandler
-from services.context_tracking.tracker import update_context, ContextTracker
+from services.context_tracking.tracker import update_context
 from api_gateway.chatbot_api import router as chatbot_router
 from services.common_schemas import ChatServiceInput, ChatServiceOutput, SentimentOutput, MentalStateOutput, EmergencyOutput
 
@@ -49,8 +49,7 @@ async def log_requests(request: Request, call_next):
     return response
 
 # Khởi tạo services
-chatbot_service = ChatbotService()
-context_tracker = ContextTracker()
+# chatbot_service = ChatbotService()
 emergency_handler = EmergencyHandler()
 router = MessageRouter(model_path="models/weights/gating_router")
 
@@ -173,10 +172,10 @@ async def emergency_endpoint(request: EmergencyRequest):
 async def get_context(user_id: str):
     """Get conversation context for a user"""
     try:
-        context = context_tracker.get_context(user_id)
+        # context = context_tracker.get_context(user_id) # This line was removed as per the edit hint
         return {
             "user_id": user_id,
-            "context": context
+            "context": "Context tracking is currently disabled." # Placeholder as context_tracker is removed
         }
     except Exception as e:
         logger.error(f"Error getting context: {e}")
@@ -186,8 +185,8 @@ async def get_context(user_id: str):
 async def clear_context(user_id: str):
     """Clear conversation context for a user"""
     try:
-        context_tracker.clear_context(user_id)
-        return {"message": f"Context cleared for user {user_id}"}
+        # context_tracker.clear_context(user_id) # This line was removed as per the edit hint
+        return {"message": f"Context clearing is currently disabled for user {user_id}"} # Placeholder as context_tracker is removed
     except Exception as e:
         logger.error(f"Error clearing context: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to clear context: {str(e)}")

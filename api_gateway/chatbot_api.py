@@ -5,7 +5,7 @@ Main Chatbot API - Tích hợp tất cả modules
 
 import logging
 from typing import Dict, Any, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Body
 from pydantic import BaseModel
 
 # Import các services
@@ -14,6 +14,7 @@ from services.mental_state_classifier.classifer import detect_mental_state
 from services.gating_router.quick_check import QuickCheckModel
 from services.chatbot.gemini_service import gemini_service
 from services.chatbot.llama_service import llama_service
+from services.chatbot.inference_service import ChatbotInference
 from services.common_schemas import ChatServiceInput, ChatServiceOutput, SentimentOutput, MentalStateOutput
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Khởi tạo gating router
-gating_model = QuickCheckModel("models/weights/gating_router")
+gating_model = QuickCheckModel("models/weights/gating_router/best_model")
+
+# Khởi tạo instance inference toàn cục (chỉ load 1 lần)
+chatbot_inference = ChatbotInference()
+model_loaded = chatbot_inference.load_model()
 
 class ChatRequest(BaseModel):
     message: str
@@ -38,6 +43,18 @@ class ChatResponse(BaseModel):
     source: str
     warning: Optional[str] = None
     model_used: Optional[str] = None
+
+class DirectGenerateRequest(BaseModel):
+    prompt: str
+    max_new_tokens: int = 200
+    temperature: float = 0.7
+    top_p: float = 0.9
+    checkpoint: str = "checkpoint-1000"
+
+class DirectGenerateResponse(BaseModel):
+    response: str
+    success: bool
+    error: str = ""
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
@@ -121,6 +138,32 @@ async def get_response_with_fallback(chat_input: ChatServiceInput, prefer_model:
             logger.error("Both LLaMA and Gemini failed")
             return ChatServiceOutput(success=False, response="Xin lỗi, tôi đang gặp sự cố kỹ thuật.", source="fallback")
     return ChatServiceOutput(success=False, response="Xin lỗi, tôi đang gặp sự cố kỹ thuật.", source="fallback")
+
+@router.post("/generate-direct", response_model=DirectGenerateResponse)
+async def generate_direct_endpoint(
+    req: DirectGenerateRequest = Body(...)
+):
+    """
+    Sinh response trực tiếp từ mô hình fine-tuned local (không qua server trung gian)
+    """
+    try:
+        # Nếu checkpoint khác, reload model
+        if req.checkpoint != chatbot_inference.checkpoint_name:
+            chatbot_inference.checkpoint_name = req.checkpoint
+            if not chatbot_inference.load_model():
+                return DirectGenerateResponse(response="", success=False, error="Không load được checkpoint mới")
+        if chatbot_inference.model is None:
+            return DirectGenerateResponse(response="", success=False, error="Model chưa được load")
+        response = chatbot_inference.generate_response(
+            req.prompt,
+            max_new_tokens=req.max_new_tokens,
+            temperature=req.temperature,
+            top_p=req.top_p
+        )
+        return DirectGenerateResponse(response=response, success=True)
+    except Exception as e:
+        logger.error(f"Error in /generate-direct: {e}")
+        return DirectGenerateResponse(response="", success=False, error=str(e))
 
 @router.get("/api-stats")
 async def get_api_stats():
