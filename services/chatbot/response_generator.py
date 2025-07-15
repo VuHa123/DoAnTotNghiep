@@ -2,6 +2,7 @@ import requests
 import os
 import logging
 import time
+import re
 
 # Thiết lập logging
 logging.basicConfig(level=logging.INFO)
@@ -28,6 +29,8 @@ def call_gemini_llm(prompt: str) -> str:
             result = res.json()
             if "candidates" in result and len(result["candidates"]) > 0:
                 response_text = result["candidates"][0]["content"]["parts"][0]["text"]
+                # Làm sạch token đặc biệt
+                response_text = re.sub(r"<\|.*?\|>", "", response_text)
                 logger.info(f"✅ Gemini API thành công - Thời gian: {duration:.2f}s - Độ dài prompt: {len(prompt)} chars")
                 return response_text
             else:

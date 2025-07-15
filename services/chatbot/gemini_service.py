@@ -10,6 +10,7 @@ import logging
 import google.generativeai as genai
 from typing import Dict, Optional, List
 from utils.api_manager import api_manager
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -99,17 +100,18 @@ Người dùng: {user_message}
                     mental_state: str = None, 
                     risk_level: str = None) -> Dict:
         """Lấy response từ Gemini với context"""
-        
         try:
             # Xây dựng prompt động
             prompt = self.build_mental_health_prompt(
                 user_message, sentiment, mental_state, risk_level
             )
-            
             # Gọi API
             response = self.call_gemini_api(prompt)
-            
+            # Làm sạch ký tự đặc biệt nếu có
+            def clean_special_tokens(text):
+                return re.sub(r"<\|.*?\|>", "", text)
             if response:
+                response = clean_special_tokens(response)
                 return {
                     "success": True,
                     "response": response,
@@ -121,7 +123,6 @@ Người dùng: {user_message}
                     "response": "Xin lỗi, tôi đang gặp sự cố kỹ thuật. Vui lòng thử lại sau.",
                     "source": "fallback"
                 }
-                
         except Exception as e:
             logger.error(f"Error in Gemini service: {e}")
             return {

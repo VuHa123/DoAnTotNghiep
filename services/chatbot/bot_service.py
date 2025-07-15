@@ -1,5 +1,6 @@
 from services.chatbot.response_generator import call_gemini_llm
 from services.summarization.summarizer import summarize
+from services.context_tracking.tracker import update_context
 
 def generate_reply(user_input: str, history: list, sentiment: str, mental_state: str) -> str:
     summary = summarize(history + [user_input])

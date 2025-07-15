@@ -1,3 +1,4 @@
+
 # 🧠 Mental Health Chatbot
 
 **Mental Health Chatbot** là hệ thống hỗ trợ tâm lý ứng dụng AI, sử dụng mô hình ngôn ngữ lớn (LLM) và các tầng phân tích rủi ro để đảm bảo an toàn, cá nhân hóa phản hồi và xử lý khẩn cấp khi cần thiết.
@@ -22,6 +23,30 @@ flowchart TD
     DB["Database\n(Lưu lịch sử, log, cảnh báo)"]
     Context["Context Tracking\n(The dõi ngữ cảnh hội thoại)"]
     Summarizer["Summarization\n(Tóm tắt hội thoại)"]
+=======
+# 🤖 Hệ Thống Chatbot Tư Vấn Tâm Lý - Tổng Quan & Kiến Trúc
+
+## 1. Giới thiệu
+
+Hệ thống Chatbot Tư Vấn Tâm Lý là một nền tảng hỗ trợ người dùng chia sẻ cảm xúc, nhận phân tích trạng thái tâm lý và được tư vấn phù hợp. Hệ thống tích hợp nhiều module AI, xử lý ngôn ngữ tự nhiên, phân tích cảm xúc, phát hiện khẩn cấp và lưu trữ hội thoại.
+
+## 2. Kiến trúc tổng quát
+
+```mermaid
+flowchart TD
+    User["Người dùng\n(Web/Gradio UI)"]
+    Frontend["Frontend\n(Gradio App)"]
+    APIGW["API Gateway\n(FastAPI)"]
+    Gating["Gating Router\n(QuickCheck)\n- Định tuyến dựa trên trạng thái tâm lý\n- Phân loại: Bình thường, Có vấn đề, Khẩn cấp"]
+    Sentiment["Sentiment Analysis\n- Phân tích cảm xúc\n- Đánh giá tích cực/tiêu cực"]
+    Mental["Mental State Classifier\n- Phân loại trạng thái tâm lý\n- Nhận diện stress, trầm cảm..."]
+    Emergency["Emergency Handler\n- Xử lý tình huống khẩn cấp\n- Gọi hotline, thông báo nhân viên"]
+    ModelLLaMA["Model Server\n(LLaMA)\n- Sinh phản hồi hội thoại chính"]
+    ModelGemini["Gemini API\n(Fallback)\n- Dự phòng khi LLaMA lỗi"]
+    DB["Database\n- Lưu trữ hội thoại, nhật ký"]
+    Context["Context Tracking\n- Theo dõi ngữ cảnh hội thoại"]
+    Summarizer["Summarization\n- Tóm tắt nội dung hội thoại"]
+
     User --> Frontend
     Frontend --> APIGW
     APIGW --> Gating
@@ -402,4 +427,3 @@ python scripts/exllama_inference.py \
 **Liên hệ hỗ trợ:**
 - Email: your.email@example.com
 - Hotline khẩn cấp: 0984.104.115
-

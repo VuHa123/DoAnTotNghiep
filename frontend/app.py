@@ -4,7 +4,11 @@ sys.path.append("..")
 from chatbot_inference import ChatbotInference
 
 # Khởi tạo model fine-tune
+<<<<<<< HEAD
 chatbot = ChatbotInference(checkpoint_name="checkpoint-549")
+=======
+chatbot = ChatbotInference(checkpoint_name="checkpoint-1098")
+>>>>>>> dev
 chatbot.load_model()
 
 chat_goals = [
@@ -86,7 +90,11 @@ with gr.Blocks(title="Mentalbot - Chatbot Tâm Lý", theme=gr.themes.Soft()) as 
         with gr.Column():
             gr.Markdown("## 🧠 MENTALBOT\nTrò chuyện tâm lý cùng bạn")
             gr.Markdown("👋 **Xin chào! Bạn muốn tôi hỗ trợ gì hôm nay?**")
+<<<<<<< HEAD
             chat_goal = gr.Radio(choices=chat_goals, label="", interactive=True)
+=======
+            chat_goal = gr.Radio(choices=list(chat_goals), label="", interactive=True)
+>>>>>>> dev
             start_btn = gr.Button("Bắt đầu", variant="primary")
         settings_btn = gr.Button("⚙️ Tuỳ chọn", variant="secondary")
         welcome_text = gr.Markdown(visible=False)

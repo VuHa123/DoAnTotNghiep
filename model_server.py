@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Dict, Optional, List
 import uvicorn
+import re
 
 # Add parent directory to path
 sys.path.append(str(Path(__file__).parent))
@@ -65,16 +66,18 @@ def load_model():
         logger.info(f"Using device: {device}")
         
         # Model paths
-        base_model_path = "meta-llama/Llama-3.2-1B-Instruct"
-        fine_tuned_path = "models/weights/chatbot_finetuned/final_model"
+        base_model_path = "models/weights/base_model/meta-llama/Llama-3.2-1B-Instruct"
+        checkpoint_path = "models/weights/chatbot_finetuned/checkpoint-1098"
         
-        # Check if fine-tuned model exists
-        if os.path.exists(fine_tuned_path):
-            logger.info(f"Loading fine-tuned model from: {fine_tuned_path}")
-            model_path = fine_tuned_path
-        else:
-            logger.warning(f"Fine-tuned model not found at {fine_tuned_path}, using base model")
+        # Check if checkpoint exists
+        if os.path.exists(checkpoint_path):
+            logger.info(f"Loading checkpoint from: {checkpoint_path}")
             model_path = base_model_path
+            adapter_path = checkpoint_path
+        else:
+            logger.warning(f"Checkpoint not found at {checkpoint_path}, using base model")
+            model_path = base_model_path
+            adapter_path = None
         
         # Load tokenizer
         tokenizer = AutoTokenizer.from_pretrained(model_path)
@@ -84,17 +87,16 @@ def load_model():
         # Load model
         model = AutoModelForCausalLM.from_pretrained(
             model_path,
-            device_map="auto",
             torch_dtype=torch.float16,
-            load_in_4bit=True,
             trust_remote_code=True
         )
+        model = model.to(device)
         
         # If using base model, try to load LoRA adapter
-        if model_path == base_model_path and os.path.exists(fine_tuned_path):
+        if adapter_path and os.path.exists(adapter_path):
             try:
                 logger.info("Loading LoRA adapter...")
-                model = PeftModel.from_pretrained(model, fine_tuned_path)
+                model = PeftModel.from_pretrained(model, adapter_path)
                 logger.info("LoRA adapter loaded successfully")
             except Exception as e:
                 logger.warning(f"Failed to load LoRA adapter: {e}")
@@ -148,6 +150,9 @@ Bạn là một chatbot hỗ trợ tâm lý chuyên nghiệp. Hãy trả lời n
         # Extract only the response part
         if "### Response:" in response:
             response = response.split("### Response:")[-1].strip()
+        
+        # Làm sạch token đặc biệt
+        response = re.sub(r"<\|.*?\|>", "", response)
         
         return response
         
