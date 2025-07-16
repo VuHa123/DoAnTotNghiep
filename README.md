@@ -15,15 +15,15 @@ flowchart TD
     User["Người dùng<br/>(Web/Gradio UI)"]
     Frontend["Frontend<br/>(Gradio App)"]
     APIGW["API Gateway<br/>(FastAPI)"]
-    Gating["Gating Router<br/>(QuickCheck)<br/>- Phân loại mức độ rủi ro"]
-    Sentiment["Sentiment Analysis<br/>- Phân tích cảm xúc"]
+    Gating["Gating Router<br/>(QuickCheck)<br/>Phân loại mức độ rủi ro"]
+    Sentiment["Sentiment Analysis<br/>Phân tích cảm xúc"]
     Mental["Mental State Classifier<br/>- Phân loại trạng thái tâm thần"]
-    Emergency["Emergency Handler<br/>- Xử lý khẩn cấp"]
-    ModelLLaMA["Model Server<br/>(LLaMA)<br/>- Sinh phản hồi chính"]
-    ModelGemini["Gemini API<br/>(Fallback)<br/>- Dự phòng khi LLaMA lỗi"]
-    DB["Database<br/>- Lưu lịch sử, log, cảnh báo"]
-    Context["Context Tracking<br/>- Theo dõi ngữ cảnh hội thoại"]
-    Summarizer["Summarization<br/>- Tóm tắt hội thoại"]
+    Emergency["Emergency Handler<br/>Xử lý khẩn cấp"]
+    ModelLLaMA["Model Server<br/>(LLaMA)<br/>Sinh phản hồi chính"]
+    ModelGemini["Gemini API<br/>(Fallback)<br/>Dự phòng khi LLaMA lỗi"]
+    DB["Database<br/>Lưu lịch sử, log, cảnh báo"]
+    Context["Context Tracking<br/>Theo dõi ngữ cảnh hội thoại"]
+    Summarizer["Summarization<br/>Tóm tắt hội thoại"]
 
     User --> Frontend
     Frontend --> APIGW
