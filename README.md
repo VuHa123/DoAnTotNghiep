@@ -7,45 +7,22 @@
 
 ## 🚦 Kiến trúc & Flow tổng quan
 
-Hệ thống chatbot được thiết kế với các tầng xử lý rõ ràng, đảm bảo an toàn, cá nhân hóa và phản hồi linh hoạt:
+Hệ thống chatbot được thiết kế với các tầng xử lý rõ ràng, đảm bảo an toàn, cá nhân hóa và phản hồi linh hoạt. Sơ đồ dưới đây thể hiện kiến trúc tổng quan, chức năng từng module và luồng xử lý chính:
 
 ```mermaid
 flowchart TD
     User["Người dùng<br/>(Web/Gradio UI)"]
     Frontend["Frontend<br/>(Gradio App)"]
     APIGW["API Gateway<br/>(FastAPI)"]
-    Gating["Gating Router<br/>(QuickCheck)\n(Phân loại mức độ rủi ro)"]
-    Sentiment["Sentiment Analysis\n(Phân tích cảm xúc)"]
-    Mental["Mental State Classifier\n(Phân loại trạng thái tâm thần)"]
-    Emergency["Emergency Handler\n(Xử lý khẩn cấp)"]
-    ModelLLaMA["Model Server<br/>(LLaMA)\n(Chatbot chính)"]
-    ModelGemini["Gemini API<br/>(Fallback)\n(Chatbot dự phòng)"]
-    DB["Database\n(Lưu lịch sử, log, cảnh báo)"]
-    Context["Context Tracking\n(The dõi ngữ cảnh hội thoại)"]
-    Summarizer["Summarization\n(Tóm tắt hội thoại)"]
-=======
-# 🤖 Hệ Thống Chatbot Tư Vấn Tâm Lý - Tổng Quan & Kiến Trúc
-
-## 1. Giới thiệu
-
-Hệ thống Chatbot Tư Vấn Tâm Lý là một nền tảng hỗ trợ người dùng chia sẻ cảm xúc, nhận phân tích trạng thái tâm lý và được tư vấn phù hợp. Hệ thống tích hợp nhiều module AI, xử lý ngôn ngữ tự nhiên, phân tích cảm xúc, phát hiện khẩn cấp và lưu trữ hội thoại.
-
-## 2. Kiến trúc tổng quát
-
-```mermaid
-flowchart TD
-    User["Người dùng\n(Web/Gradio UI)"]
-    Frontend["Frontend\n(Gradio App)"]
-    APIGW["API Gateway\n(FastAPI)"]
-    Gating["Gating Router\n(QuickCheck)\n- Định tuyến dựa trên trạng thái tâm lý\n- Phân loại: Bình thường, Có vấn đề, Khẩn cấp"]
-    Sentiment["Sentiment Analysis\n- Phân tích cảm xúc\n- Đánh giá tích cực/tiêu cực"]
-    Mental["Mental State Classifier\n- Phân loại trạng thái tâm lý\n- Nhận diện stress, trầm cảm..."]
-    Emergency["Emergency Handler\n- Xử lý tình huống khẩn cấp\n- Gọi hotline, thông báo nhân viên"]
-    ModelLLaMA["Model Server\n(LLaMA)\n- Sinh phản hồi hội thoại chính"]
-    ModelGemini["Gemini API\n(Fallback)\n- Dự phòng khi LLaMA lỗi"]
-    DB["Database\n- Lưu trữ hội thoại, nhật ký"]
-    Context["Context Tracking\n- Theo dõi ngữ cảnh hội thoại"]
-    Summarizer["Summarization\n- Tóm tắt nội dung hội thoại"]
+    Gating["Gating Router<br/>(QuickCheck)<br/>- Phân loại mức độ rủi ro"]
+    Sentiment["Sentiment Analysis<br/>- Phân tích cảm xúc"]
+    Mental["Mental State Classifier<br/>- Phân loại trạng thái tâm thần"]
+    Emergency["Emergency Handler<br/>- Xử lý khẩn cấp"]
+    ModelLLaMA["Model Server<br/>(LLaMA)<br/>- Sinh phản hồi chính"]
+    ModelGemini["Gemini API<br/>(Fallback)<br/>- Dự phòng khi LLaMA lỗi"]
+    DB["Database<br/>- Lưu lịch sử, log, cảnh báo"]
+    Context["Context Tracking<br/>- Theo dõi ngữ cảnh hội thoại"]
+    Summarizer["Summarization<br/>- Tóm tắt hội thoại"]
 
     User --> Frontend
     Frontend --> APIGW
@@ -66,18 +43,18 @@ flowchart TD
     Summarizer --> APIGW
     APIGW --> Frontend
     %% Style
-    style User fill:#fff,stroke:#333,stroke-width:2px
-    style Frontend fill:#fff,stroke:#333,stroke-width:2px
-    style APIGW fill:#fff,stroke:#333,stroke-width:2px
-    style Gating fill:#fff,stroke:#333,stroke-width:2px
-    style Sentiment fill:#fff,stroke:#333,stroke-width:2px
-    style Mental fill:#fff,stroke:#333,stroke-width:2px
-    style Emergency fill:#fff,stroke:#333,stroke-width:2px
-    style ModelLLaMA fill:#fff,stroke:#333,stroke-width:2px
-    style ModelGemini fill:#fff,stroke:#333,stroke-width:2px
-    style DB fill:#fff,stroke:#333,stroke-width:2px
-    style Context fill:#fff,stroke:#333,stroke-width:2px
-    style Summarizer fill:#fff,stroke:#333,stroke-width:2px
+    style User fill:#ffffff,stroke:#333,stroke-width:2px
+    style Frontend fill:#ffffff,stroke:#333,stroke-width:2px
+    style APIGW fill:#ffffff,stroke:#333,stroke-width:2px
+    style Gating fill:#ffe0b2,stroke:#333,stroke-width:2px
+    style Sentiment fill:#ffe0b2,stroke:#333,stroke-width:2px
+    style Mental fill:#ffe0b2,stroke:#333,stroke-width:2px
+    style Emergency fill:#ffcdd2,stroke:#333,stroke-width:2px
+    style ModelLLaMA fill:#c8e6c9,stroke:#333,stroke-width:2px
+    style ModelGemini fill:#f8bbd0,stroke:#333,stroke-width:2px
+    style DB fill:#d7ccc8,stroke:#333,stroke-width:2px
+    style Context fill:#d1c4e9,stroke:#333,stroke-width:2px
+    style Summarizer fill:#d1c4e9,stroke:#333,stroke-width:2px
 ```
 
 ### Chức năng từng module:
