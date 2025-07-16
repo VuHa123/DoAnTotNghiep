@@ -10,6 +10,7 @@
 Hệ thống chatbot được thiết kế với các tầng xử lý rõ ràng, đảm bảo an toàn, cá nhân hóa và phản hồi linh hoạt. Sơ đồ dưới đây thể hiện kiến trúc tổng quan, chức năng từng module và luồng xử lý chính:
 
 ```mermaid
+%%{init: { 'theme': 'base', 'themeVariables': { 'background': '#f7fafd', 'fontFamily': 'Inter, Arial', 'fontSize': '16px', 'fontWeight': 'bold', 'primaryTextColor': '#222', 'nodeTextColor': '#222', 'lineColor': '#888', 'edgeLabelBackground':'#f7fafd' } } }%%
 flowchart TD
     User["Người dùng<br/>(Web/Gradio UI)"]
     Frontend["Frontend<br/>(Gradio App)"]
@@ -43,18 +44,18 @@ flowchart TD
     Summarizer --> APIGW
     APIGW --> Frontend
     %% Style
-    style User fill:#ffffff,stroke:#333,stroke-width:2px
-    style Frontend fill:#ffffff,stroke:#333,stroke-width:2px
-    style APIGW fill:#ffffff,stroke:#333,stroke-width:2px
-    style Gating fill:#ffe0b2,stroke:#333,stroke-width:2px
-    style Sentiment fill:#ffe0b2,stroke:#333,stroke-width:2px
-    style Mental fill:#ffe0b2,stroke:#333,stroke-width:2px
-    style Emergency fill:#ffcdd2,stroke:#333,stroke-width:2px
-    style ModelLLaMA fill:#c8e6c9,stroke:#333,stroke-width:2px
-    style ModelGemini fill:#f8bbd0,stroke:#333,stroke-width:2px
-    style DB fill:#d7ccc8,stroke:#333,stroke-width:2px
-    style Context fill:#d1c4e9,stroke:#333,stroke-width:2px
-    style Summarizer fill:#d1c4e9,stroke:#333,stroke-width:2px
+    style User fill:#e3f2fd,stroke:#90caf9,stroke-width:2px,color:#222
+    style Frontend fill:#fffde7,stroke:#ffe082,stroke-width:2px,color:#222
+    style APIGW fill:#f3e5f5,stroke:#ce93d8,stroke-width:2px,color:#222
+    style Gating fill:#ffe0b2,stroke:#ffb74d,stroke-width:2px,color:#222
+    style Sentiment fill:#ffe0b2,stroke:#ffb74d,stroke-width:2px,color:#222
+    style Mental fill:#ffe0b2,stroke:#ffb74d,stroke-width:2px,color:#222
+    style Emergency fill:#ffcdd2,stroke:#e57373,stroke-width:2px,color:#222
+    style ModelLLaMA fill:#c8e6c9,stroke:#81c784,stroke-width:2px,color:#222
+    style ModelGemini fill:#f8bbd0,stroke:#f06292,stroke-width:2px,color:#222
+    style DB fill:#d7ccc8,stroke:#a1887f,stroke-width:2px,color:#222
+    style Context fill:#d1c4e9,stroke:#9575cd,stroke-width:2px,color:#222
+    style Summarizer fill:#d1c4e9,stroke:#9575cd,stroke-width:2px,color:#222
 ```
 
 ### Chức năng từng module:
