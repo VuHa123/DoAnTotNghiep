@@ -59,18 +59,18 @@ flowchart TD
 ```
 
 ### Chức năng từng module:
-- **Người dùng (Web/Gradio UI):** Giao diện trò chuyện cho người dùng cuối.
-- **Frontend (Gradio App):** Hiển thị hội thoại, gửi/nhận message, hiển thị cảnh báo.
-- **API Gateway (FastAPI):** Trung tâm điều phối, nhận message, gọi các service, trả kết quả về frontend.
-- **Gating Router (QuickCheck):** Phân loại mức độ rủi ro (bình thường, có vấn đề, khẩn cấp) cho từng message.
-- **Sentiment Analysis:** Phân tích cảm xúc, hỗ trợ cá nhân hóa phản hồi.
-- **Mental State Classifier:** Phân loại trạng thái tâm thần, phát hiện dấu hiệu bất thường.
-- **Emergency Handler:** Xử lý khẩn cấp, cảnh báo, gọi hotline, ghi log sự kiện nguy hiểm.
-- **Model Server (LLaMA):** Chatbot chính, sinh phản hồi tự nhiên, thông minh.
-- **Gemini API (Fallback):** Chatbot dự phòng, dùng khi LLaMA lỗi hoặc cần đa dạng nguồn trả lời.
-- **Database:** Lưu lịch sử hội thoại, log, cảnh báo, trạng thái user.
-- **Context Tracking:** Theo dõi ngữ cảnh hội thoại, giúp chatbot trả lời mạch lạc.
-- **Summarization:** Tóm tắt hội thoại, hỗ trợ tổng hợp thông tin cho user hoặc chuyên gia.
+- **Người dùng (Web/Gradio UI)** (*Giao diện trò chuyện cho người dùng cuối*)
+- **Frontend (Gradio App)** (*Hiển thị hội thoại, gửi/nhận message, hiển thị cảnh báo*)
+- **API Gateway (FastAPI)** (*Trung tâm điều phối, nhận message, gọi các service, trả kết quả về frontend*)
+- **Gating Router (QuickCheck)** (*Phân loại mức độ rủi ro: bình thường, có vấn đề, khẩn cấp cho từng message*)
+- **Sentiment Analysis** (*Phân tích cảm xúc, hỗ trợ cá nhân hóa phản hồi*)
+- **Mental State Classifier** (*Phân loại trạng thái tâm thần, phát hiện dấu hiệu bất thường*)
+- **Emergency Handler** (*Xử lý khẩn cấp, cảnh báo, gọi hotline, ghi log sự kiện nguy hiểm*)
+- **Model Server (LLaMA)** (*Chatbot chính, sinh phản hồi tự nhiên, thông minh*)
+- **Gemini API (Fallback)** (*Chatbot dự phòng, dùng khi LLaMA lỗi hoặc cần đa dạng nguồn trả lời*)
+- **Database** (*Lưu lịch sử hội thoại, log, cảnh báo, trạng thái user*)
+- **Context Tracking** (*Theo dõi ngữ cảnh hội thoại, giúp chatbot trả lời mạch lạc*)
+- **Summarization** (*Tóm tắt hội thoại, hỗ trợ tổng hợp thông tin cho user hoặc chuyên gia*)
 
 > Sơ đồ trên giúp người mới dễ hình dung toàn bộ luồng xử lý và vai trò từng thành phần trong hệ thống chatbot AI hỗ trợ tâm lý.
 
