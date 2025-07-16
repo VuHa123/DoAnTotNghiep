@@ -42,6 +42,9 @@ def chat_with_bot(user_input, chat_history, chat_goal, turn_count, summary_shown
     chat_history.append({"role": "user", "content": user_input})
     # Phản hồi 3 bước (giả lập: luôn đồng cảm)
     response_full = response + "\n→ [Chiến lược phản hồi: Đồng cảm]"
+    # Nếu có cảnh báo nguy cơ, nhắc nhở trong hội thoại
+    if "tự tử" in user_input.lower() or "kết thúc" in user_input.lower():
+        response_full = "🚨 <b>Lưu ý: Nếu bạn đang gặp nguy hiểm, hãy gọi ngay Hotline 096.306.1414 hoặc liên hệ người thân!</b>\n" + response_full
     chat_history.append({"role": "assistant", "content": response_full})
 
     # Phân tích cảm xúc (giả lập)
@@ -51,16 +54,17 @@ def chat_with_bot(user_input, chat_history, chat_goal, turn_count, summary_shown
 
     # Kiểm tra nguy cơ khẩn cấp (giả lập)
     emergency = False
+    banner_visible = False
     if "tự tử" in user_input.lower() or "kết thúc" in user_input.lower():
         emergency = True
         ui_state = STATE_EMERGENCY
-
+        banner_visible = True
     # Gợi ý tóm tắt sau X lượt chat
     if turn_count >= SUMMARY_TRIGGER and not summary_shown and not emergency:
         ui_state = STATE_SUMMARY
         summary_shown = True
 
-    return "", chat_history, emotion_status, ui_state, turn_count, summary_shown, ""
+    return "", chat_history, emotion_status, ui_state, turn_count, summary_shown, "", gr.update(visible=banner_visible)
 
 def continue_after_emergency(chat_history, turn_count):
     # Quay lại chat bình thường
@@ -82,7 +86,150 @@ def open_settings():
 def close_settings():
     return gr.update(visible=False)
 
-with gr.Blocks(title="Mentalbot - Chatbot Tâm Lý", theme=gr.themes.Soft()) as demo:
+# --- Hàm xử lý mới cho banner cảnh báo và hotline ---
+def show_banner_warning():
+    return gr.update(visible=True)
+
+def hide_banner_warning():
+    return gr.update(visible=False)
+
+def hotline_click():
+    return "📞 Đang kết nối tổng đài 096.306.1414...", gr.update(visible=True)
+
+with gr.Blocks(
+    css="""
+    body { background: #e3f6fd !important; }
+    .banner-warning {
+        position: fixed;
+        left: 24px;
+        bottom: 24px;
+        z-index: 1000;
+        background: #fff3cd;
+        color: #b94a48;
+        border: 2px solid #f5c06f;
+        border-radius: 12px;
+        padding: 16px 32px;
+        font-weight: bold;
+        font-size: 18px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        animation: shake 0.5s;
+        display: block;
+    }
+    @keyframes shake {
+        0% { transform: translateX(0); }
+        20% { transform: translateX(-8px); }
+        40% { transform: translateX(8px); }
+        60% { transform: translateX(-8px); }
+        80% { transform: translateX(8px); }
+        100% { transform: translateX(0); }
+    }
+    #hotline-btn {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 1000;
+        background: #ff5252;
+        color: white;
+        border-radius: 32px;
+        font-size: 18px;
+        padding: 16px 28px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+        border: none;
+        cursor: pointer;
+        font-weight: bold;
+        transition: background 0.2s;
+    }
+    #hotline-btn:hover {
+        background: #d32f2f;
+    }
+    body { background: #e3f6fd !important; }
+    #chat-container {
+        background: #e3f6fd;
+        border-radius: 18px;
+        padding: 24px 16px 80px 16px;
+        min-height: 400px;
+        max-width: 600px;
+        margin: 32px auto 0 auto;
+        box-shadow: 0 2px 16px rgba(0,0,0,0.06);
+        position: relative;
+    }
+    .message-row {
+        display: flex;
+        margin-bottom: 10px;
+    }
+    .message-bot {
+        justify-content: flex-start;
+    }
+    .message-user {
+        justify-content: flex-end;
+    }
+    .bubble {
+        max-width: 70%;
+        padding: 12px 18px;
+        border-radius: 18px;
+        font-size: 16px;
+        margin: 2px 0;
+        background: #ffffffcc;
+        color: #222;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+    .bubble.user {
+        background: #b2ebf2;
+        color: #01579b;
+        border-bottom-right-radius: 4px;
+    }
+    .bubble.bot {
+        background: #fff;
+        color: #222;
+        border-bottom-left-radius: 4px;
+    }
+    #emotion-status {
+        margin: 12px 0 0 0;
+        font-size: 18px;
+        font-weight: bold;
+        color: #0288d1;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    #input-row {
+        display: flex;
+        gap: 8px;
+        margin-top: 18px;
+    }
+    #user-input {
+        flex: 1;
+        border-radius: 12px;
+        border: 1px solid #b2ebf2;
+        padding: 10px 14px;
+        font-size: 16px;
+        outline: none;
+    }
+    #send-btn {
+        background: #0288d1;
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 10px 22px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    #send-btn:hover {
+        background: #01579b;
+    }
+    #hotline-icon {
+        position: absolute;
+        bottom: 12px;
+        right: 12px;
+        cursor: pointer;
+        z-index: 10;
+        transition: transform 0.2s;
+    }
+    #hotline-icon:hover { transform: scale(1.15); }
+    """
+) as demo:
     # --- Màn hình chính ---
     with gr.Row(visible=True) as main_screen:
         with gr.Column():
@@ -102,6 +249,15 @@ with gr.Blocks(title="Mentalbot - Chatbot Tâm Lý", theme=gr.themes.Soft()) as 
             emotion_status = gr.Textbox(label="", interactive=False, value="😟 Cảm xúc hiện tại: Căng thẳng")
             user_input = gr.Textbox(placeholder="Nhập nội dung...", label="", lines=2)
             send_btn = gr.Button("Gửi", variant="primary")
+            # Nút hotline icon động nhỏ trong khung chat
+            hotline_icon = gr.HTML('<div id="hotline-icon" onclick="window.open(\'tel:0963061414\')"><svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="20" fill="#0288d1"/><path d="M28 24.5c-1.2 0-2.4-.2-3.5-.6-.5-.2-1.1 0-1.4.4l-1.1 1.7c-3.2-1.7-5.8-4.3-7.5-7.5l1.7-1.1c.4-.3.6-.9.4-1.4-.4-1.1-.6-2.3-.6-3.5 0-.6-.4-1-1-1H11c-.6 0-1 .4-1 1C10 23.1 16.9 30 25 30c.6 0 1-.4 1-1v-3c0-.6-.4-1-1-1z" fill="#fff"><animateTransform attributeName="transform" type="scale" values="1;1.15;1" dur="1s" repeatCount="indefinite"/></path></svg></div>', visible=True)
+
+    # --- Banner cảnh báo (băng rôn) ---
+    banner_warning = gr.HTML('<div id="banner-warning" class="banner-warning">🚨 CẢNH BÁO: Nếu bạn đang gặp nguy hiểm hoặc có ý định tự làm hại bản thân, hãy gọi ngay <b>Hotline 096.306.1414</b> hoặc liên hệ người thân!</div>', visible=False)
+
+    # --- Nút hotline nổi ---
+    hotline_btn = gr.Button("📞 Hotline: 096.306.1414", elem_id="hotline-btn", visible=True)
+    hotline_result = gr.Textbox(label="", interactive=False, visible=False)
 
     # --- Màn hình cảnh báo khẩn cấp ---
     with gr.Row(visible=False) as emergency_screen:
@@ -139,6 +295,7 @@ with gr.Blocks(title="Mentalbot - Chatbot Tâm Lý", theme=gr.themes.Soft()) as 
     ui_state = gr.State(STATE_MAIN)
     turn_count = gr.State(0)
     summary_shown = gr.State(False)
+    is_generating = gr.State(False)
 
     # --- Sự kiện ---
     start_btn.click(
@@ -147,10 +304,20 @@ with gr.Blocks(title="Mentalbot - Chatbot Tâm Lý", theme=gr.themes.Soft()) as 
         outputs=[main_screen, chat_screen, chatbot_ui, user_input, emotion_status, ui_state, turn_count, summary_shown, welcome_text]
     )
 
+    def on_send(user_input, chat_history, chat_goal, turn_count, summary_shown, ui_state, is_generating):
+        if is_generating:
+            # Nếu đang sinh, dừng lại (giả lập)
+            return gr.update(), chat_history, emotion_status, ui_state, turn_count, summary_shown, welcome_text, banner_warning, False, gr.update(value="Gửi", interactive=True)
+        else:
+            # Bắt đầu sinh phản hồi
+            # (giả lập: không thực sự dừng thread, chỉ đổi trạng thái)
+            result = chat_with_bot(user_input, chat_history, chat_goal, turn_count, summary_shown, ui_state)
+            return *result, True, gr.update(value="Tạm dừng", interactive=True)
+
     send_btn.click(
-        chat_with_bot,
-        inputs=[user_input, chatbot_ui, chat_goal, turn_count, summary_shown, ui_state],
-        outputs=[user_input, chatbot_ui, emotion_status, ui_state, turn_count, summary_shown, welcome_text]
+        on_send,
+        inputs=[user_input, chatbot_ui, chat_goal, turn_count, summary_shown, ui_state, is_generating],
+        outputs=[user_input, chatbot_ui, emotion_status, ui_state, turn_count, summary_shown, welcome_text, banner_warning, is_generating, send_btn]
     )
 
     # Điều hướng giữa các màn hình dựa vào ui_state
@@ -178,6 +345,8 @@ with gr.Blocks(title="Mentalbot - Chatbot Tâm Lý", theme=gr.themes.Soft()) as 
 
     settings_btn.click(open_settings, outputs=settings_screen)
     close_settings_btn.click(close_settings, outputs=settings_screen)
+
+    hotline_btn.click(hotline_click, outputs=[hotline_result])
 
 if __name__ == "__main__":
     demo.launch(server_name="0.0.0.0", server_port=7860, share=False)

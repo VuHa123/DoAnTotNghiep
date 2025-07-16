@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft.peft_model import PeftModel
 import re
+import threading
 
 # Load environment variables
 load_dotenv("token.env")
@@ -35,6 +36,7 @@ class ChatbotInference:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = None
         self.tokenizer = None
+        self.stop_event = threading.Event()
         
         logger.info(f"Using device: {self.device}")
         logger.info(f"Using checkpoint: {checkpoint_name}")
@@ -82,61 +84,45 @@ class ChatbotInference:
             logger.error(f"❌ Error loading model: {e}")
             return False
 
+    def stop_generation(self):
+        """Gọi hàm này để dừng sinh phản hồi ngay lập tức"""
+        self.stop_event.set()
     
     def generate_response(self, prompt, max_new_tokens=200, temperature=0.7, top_p=0.9):
         """
-        Generate response từ prompt
-        
-        Args:
-            prompt: Input prompt
-            max_new_tokens: Số token tối đa generate
-            temperature: Temperature cho generation
-            top_p: Top-p sampling
-            
-        Returns:
-            Generated response
+        Generate response từ prompt, hỗ trợ dừng sinh phản hồi qua self.stop_event
         """
         try:
             if self.model is None or self.tokenizer is None:
                 raise RuntimeError("Model chưa được load. Gọi load_model() trước.")
-            
-            # Format prompt cho mental health chatbot
-            formatted_prompt = f"""### Instruction:
-Bạn là một chatbot hỗ trợ tâm lý chuyên nghiệp. Hãy trả lời người dùng một cách thân thiện, đồng cảm và hữu ích.
-
-### Input:
-{prompt}
-
-### Response:
-"""
-            
-            # Tokenize
-            inputs = self.tokenizer(formatted_prompt, return_tensors="pt", truncation=True, 
-                                  max_length=512, padding=False)
+            self.stop_event.clear()
+            formatted_prompt = f"""### Instruction:\nBạn là một chatbot hỗ trợ tâm lý chuyên nghiệp. Hãy trả lời người dùng một cách thân thiện, đồng cảm và hữu ích.\n\n### Input:\n{prompt}\n\n### Response:\n"""
+            inputs = self.tokenizer(formatted_prompt, return_tensors="pt", truncation=True, max_length=512, padding=False)
             inputs = {k: v.to(self.device) for k, v in inputs.items()}
-            
-            # Generate
-            with torch.no_grad():
-                outputs = self.model.generate(
-                    **inputs,
-                    max_new_tokens=max_new_tokens,
-                    temperature=temperature,
-                    top_p=top_p,
-                    do_sample=True,
-                    pad_token_id=self.tokenizer.eos_token_id,
-                    eos_token_id=self.tokenizer.eos_token_id,
-                    repetition_penalty=1.1
-                )
-            
-            # Decode response
-            response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-            
-            # Extract chỉ phần response
+            # Sinh từng token và kiểm tra cờ dừng
+            output_ids = list(inputs["input_ids"][0].tolist())
+            for _ in range(max_new_tokens):
+                if self.stop_event.is_set():
+                    break
+                with torch.no_grad():
+                    outputs = self.model.generate(
+                        input_ids=torch.LongTensor([output_ids]).to(self.device),
+                        max_new_tokens=1,
+                        temperature=temperature,
+                        top_p=top_p,
+                        do_sample=True,
+                        pad_token_id=self.tokenizer.eos_token_id,
+                        eos_token_id=self.tokenizer.eos_token_id,
+                        repetition_penalty=1.1
+                    )
+                new_token_id = outputs[0, -1].item()
+                output_ids.append(new_token_id)
+                if new_token_id == self.tokenizer.eos_token_id:
+                    break
+            response = self.tokenizer.decode(output_ids, skip_special_tokens=True)
             if "### Response:" in response:
                 response = response.split("### Response:")[-1].strip()
-            
             return response
-            
         except Exception as e:
             logger.error(f"❌ Error generating response: {e}")
             return "Xin lỗi, tôi đang gặp sự cố kỹ thuật. Vui lòng thử lại sau."
