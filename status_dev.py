@@ -109,7 +109,7 @@ def check_model_files():
     
     model_paths = [
         "models/weights/base_model/meta-llama/Llama-3.2-1B-Instruct/",
-        "models/weights/chatbot_finetuned/final_model/",
+        "models/weights/chatbot_finetuned/checkpoint-1098/",
         "models/weights/gating_router/",
         "models/weights/mental_state/",
         "models/weights/sentiment/"

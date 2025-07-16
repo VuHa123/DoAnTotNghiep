@@ -7,6 +7,7 @@ import os
 import sys
 from dotenv import load_dotenv
 from transformers import AutoTokenizer, AutoModelForCausalLM
+import torch
 
 # Load environment variables
 load_dotenv("token.env")
@@ -17,8 +18,8 @@ def download_llama_model():
         print("🔄 Downloading Llama-3.2-1B-Instruct model...")
         
         # Model path
-        model_name = "meta-llama/Llama-3.2-1B-Instruct"
-        output_dir = "models/weights/base_model/meta-llama/Llama-3.2-1B-Instruct"
+        model_name = "vinai/phobert-base"
+        output_dir = "/home/aero/DoAnTotNghiep/models/weights/phobert-base/models--vinai--phobert-base"
         
         # Tạo thư mục output
         os.makedirs(output_dir, exist_ok=True)
@@ -42,11 +43,12 @@ def download_llama_model():
         # Tải model
         print("📥 Downloading model (this may take a while)...")
         model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            token=token,
-            torch_dtype="auto",
-            trust_remote_code=True
-        )
+                model_name,
+                # device_map="auto",
+                torch_dtype=torch.float16,
+                use_safetensors=True  # <-- thêm dòng này
+            )
+
         
         # Lưu model và tokenizer
         print(f"💾 Saving model to {output_dir}...")
@@ -79,14 +81,14 @@ def check_model_access():
         print(f"✅ Logged in as: {user}")
         
         # Kiểm tra quyền truy cập model
-        model_id = "meta-llama/Llama-3.2-1B-Instruct"
+        model_id = "vinai/phobert-base"
         try:
             model_info = api.model_info(model_id, token=token)
             print(f"✅ Access to {model_id} granted")
             return True
         except Exception as e:
             print(f"❌ No access to {model_id}: {e}")
-            print("💡 Please visit: https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct")
+            print("💡 Please visit: https://huggingface.co/vinai/phobert-base")
             print("   And click 'Agree and Access' to get permission")
             return False
             

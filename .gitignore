@@ -118,3 +118,17 @@ exllama/weights/
 *.backup Notebook/
 models/weights/gating_router/best_model/model.safetensors
 models/weights/phobert-base/
+
+# Bỏ qua các model và dữ liệu lớn
+models/weights/
+Dataset/
+logs/
+# Bỏ qua các file checkpoint/model phổ biến
+*.ckpt
+*.pt
+*.pth
+*.bin
+
+# Bỏ qua thư mục notebook và file notebook
+Notebook/
+*.ipynb

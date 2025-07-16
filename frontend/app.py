@@ -39,10 +39,10 @@ def chat_with_bot(user_input, chat_history, chat_goal, turn_count, summary_shown
     turn_count = (turn_count or 0) + 1
     response = chatbot.generate_response(user_input)
     chat_history = chat_history or []
-    chat_history.append(("User", user_input))
+    chat_history.append({"role": "user", "content": user_input})
     # Phản hồi 3 bước (giả lập: luôn đồng cảm)
     response_full = response + "\n→ [Chiến lược phản hồi: Đồng cảm]"
-    chat_history.append(("Bot", response_full))
+    chat_history.append({"role": "assistant", "content": response_full})
 
     # Phân tích cảm xúc (giả lập)
     current_emotion = "căng thẳng"
@@ -98,7 +98,7 @@ with gr.Blocks(title="Mentalbot - Chatbot Tâm Lý", theme=gr.themes.Soft()) as 
     # --- Màn hình chat ---
     with gr.Row(visible=False) as chat_screen:
         with gr.Column():
-            chatbot_ui = gr.Chatbot(label="", height=300)
+            chatbot_ui = gr.Chatbot(label="", height=300, type="messages")
             emotion_status = gr.Textbox(label="", interactive=False, value="😟 Cảm xúc hiện tại: Căng thẳng")
             user_input = gr.Textbox(placeholder="Nhập nội dung...", label="", lines=2)
             send_btn = gr.Button("Gửi", variant="primary")

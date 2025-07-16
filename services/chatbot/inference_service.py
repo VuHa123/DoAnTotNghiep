@@ -15,7 +15,7 @@ load_dotenv("token.env")
 logger = logging.getLogger(__name__)
 
 class ChatbotInference:
-    def __init__(self, checkpoint_name="checkpoint-1000"):
+    def __init__(self, checkpoint_name="checkpoint-1098"):
         self.checkpoint_name = checkpoint_name
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = None

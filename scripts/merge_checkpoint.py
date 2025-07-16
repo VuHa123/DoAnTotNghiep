@@ -143,7 +143,7 @@ def main():
                        help="Base model path")
     parser.add_argument("--checkpoint_path", type=str, default="models/weights/chatbot_finetuned",
                        help="Path to checkpoint directory")
-    parser.add_argument("--output_path", type=str, default="models/weights/chatbot_finetuned/final_model",
+    parser.add_argument("--output_path", type=str, default="models/weights/chatbot_finetuned/checkpoint-1098",
                        help="Output path for final model")
     parser.add_argument("--checkpoint_name", type=str, default="checkpoint-10",
                        help="Specific checkpoint name (checkpoint-549 or checkpoint-1098)")

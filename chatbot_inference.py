@@ -24,12 +24,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class ChatbotInference:
-    def __init__(self, checkpoint_name="checkpoint-1000"):
+    def __init__(self, checkpoint_name="checkpoint-1098"):
         """
         Khởi tạo chatbot inference
         
         Args:
-            checkpoint_name: Tên checkpoint (checkpoint-549, checkpoint-1000, hoặc final_model)
+            checkpoint_name: Tên checkpoint (checkpoint-1098, checkpoint-1000, hoặc final_model)
         """
         self.checkpoint_name = checkpoint_name
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -42,11 +42,10 @@ class ChatbotInference:
     def load_model(self):
         """Load model và tokenizer"""
         try:
-            # Model paths
-            base_model_path = "meta-llama/Llama-3.2-1B-Instruct"
+            # Local paths
+            base_model_path = "/home/aero/DoAnTotNghiep/models/weights/base_model/meta-llama/Llama-3.2-1B-Instruct"  # <-- base model local
             checkpoint_path = f"models/weights/chatbot_finetuned/{self.checkpoint_name}"
             
-            # Check if checkpoint exists
             if not os.path.exists(checkpoint_path):
                 logger.error(f"❌ Checkpoint not found: {checkpoint_path}")
                 return False
@@ -57,21 +56,22 @@ class ChatbotInference:
             logger.info("Loading base model...")
             base_model = AutoModelForCausalLM.from_pretrained(
                 base_model_path,
-                # device_map="auto",
                 torch_dtype=torch.float16,
-                trust_remote_code=True,
-                token=os.getenv("HF_TOKEN")
+                trust_remote_code=True
             )
             
             # Load tokenizer
             logger.info("Loading tokenizer...")
-            self.tokenizer = AutoTokenizer.from_pretrained(base_model_path, token=os.getenv("HF_TOKEN"))
+            self.tokenizer = AutoTokenizer.from_pretrained(base_model_path, use_fast=False)
             if self.tokenizer.pad_token is None:
                 self.tokenizer.pad_token = self.tokenizer.eos_token
             
-            # Load LoRA adapter
+            # Load LoRA adapter từ local
             logger.info("Loading LoRA adapter...")
-            self.model = PeftModel.from_pretrained(base_model, checkpoint_path)
+            self.model = PeftModel.from_pretrained(
+                base_model,
+                checkpoint_path
+            )
             self.model.eval()
             self.model = self.model.to(self.device)
             
@@ -81,6 +81,7 @@ class ChatbotInference:
         except Exception as e:
             logger.error(f"❌ Error loading model: {e}")
             return False
+
     
     def generate_response(self, prompt, max_new_tokens=200, temperature=0.7, top_p=0.9):
         """
@@ -111,7 +112,7 @@ Bạn là một chatbot hỗ trợ tâm lý chuyên nghiệp. Hãy trả lời n
             
             # Tokenize
             inputs = self.tokenizer(formatted_prompt, return_tensors="pt", truncation=True, 
-                                  max_length=512, padding=True)
+                                  max_length=512, padding=False)
             inputs = {k: v.to(self.device) for k, v in inputs.items()}
             
             # Generate

@@ -92,7 +92,8 @@ Bạn là một chatbot hỗ trợ tâm lý chuyên nghiệp. Hãy trả lời n
             # Generate
             with torch.no_grad():
                 outputs = model.generate(
-                    **inputs,
+                    input_ids=inputs["input_ids"],
+                    attention_mask=inputs.get("attention_mask", None),
                     max_new_tokens=200,
                     temperature=0.7,
                     top_p=0.9,
@@ -101,10 +102,9 @@ Bạn là một chatbot hỗ trợ tâm lý chuyên nghiệp. Hãy trả lời n
                     eos_token_id=tokenizer.eos_token_id,
                     repetition_penalty=1.1
                 )
-            
+
             # Decode response
             response = tokenizer.decode(outputs[0], skip_special_tokens=True)
-            
             # Extract only the response part
             if "### Response:" in response:
                 response = response.split("### Response:")[-1].strip()
@@ -128,7 +128,7 @@ def test_merge_checkpoint():
         success = merge_checkpoint_to_final_model(
             base_model_path="meta-llama/Llama-3.2-1B-Instruct",
             checkpoint_path="models/weights/chatbot_finetuned",
-            output_path="models/weights/chatbot_finetuned/final_model",
+            output_path="models/weights/chatbot_finetuned/checkpoint-1098",
             checkpoint_name="checkpoint-1098"
         )
         

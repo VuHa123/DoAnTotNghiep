@@ -220,7 +220,7 @@ def test_model():
         from transformers import AutoTokenizer, AutoModelForCausalLM
         
         # Load trained model
-        model_path = "models/weights/chatbot_finetuned/final_model"
+        model_path = "models/weights/chatbot_finetuned/checkpoint-1098"
         tokenizer = AutoTokenizer.from_pretrained(model_path)
         model = AutoModelForCausalLM.from_pretrained(model_path)
         
