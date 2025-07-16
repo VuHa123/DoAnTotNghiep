@@ -132,3 +132,4 @@ logs/
 # Bỏ qua thư mục notebook và file notebook
 Notebook/
 *.ipynb
+token.env
