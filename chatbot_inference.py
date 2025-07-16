@@ -99,14 +99,15 @@ class ChatbotInference:
             formatted_prompt = f"""### Instruction:\nBạn là một chatbot hỗ trợ tâm lý chuyên nghiệp. Hãy trả lời người dùng một cách thân thiện, đồng cảm và hữu ích.\n\n### Input:\n{prompt}\n\n### Response:\n"""
             inputs = self.tokenizer(formatted_prompt, return_tensors="pt", truncation=True, max_length=512, padding=False)
             inputs = {k: v.to(self.device) for k, v in inputs.items()}
-            # Sinh từng token và kiểm tra cờ dừng
             output_ids = list(inputs["input_ids"][0].tolist())
+            attention_mask = inputs["attention_mask"][0].tolist()
             for _ in range(max_new_tokens):
                 if self.stop_event.is_set():
                     break
                 with torch.no_grad():
                     outputs = self.model.generate(
-                        input_ids=torch.LongTensor([output_ids]).to(self.device),
+                        input_ids=torch.LongTensor([output_ids]).unsqueeze(0).to(self.device),
+                        attention_mask=torch.LongTensor([attention_mask]).to(self.device),
                         max_new_tokens=1,
                         temperature=temperature,
                         top_p=top_p,
@@ -117,6 +118,7 @@ class ChatbotInference:
                     )
                 new_token_id = outputs[0, -1].item()
                 output_ids.append(new_token_id)
+                attention_mask.append(1)
                 if new_token_id == self.tokenizer.eos_token_id:
                     break
             response = self.tokenizer.decode(output_ids, skip_special_tokens=True)
@@ -190,6 +192,24 @@ def list_available_checkpoints():
             checkpoints.append("final_model")
     
     return checkpoints
+    def detect_emergency(self, user_input: str) -> str:
+        """
+        Phát hiện nguy cơ khẩn cấp (tự tử, làm hại bản thân...) từ input người dùng
+        Args:
+            user_input (str): Câu nhập từ người dùng
+        Returns:
+            str: 'emergency' nếu có nguy cơ khẩn cấp, 'normal' nếu không
+        """
+        emergency_keywords = [
+            "tự tử", "muốn chết", "kết thúc cuộc đời", "tự sát", "đau khổ quá",
+            "không thể chịu nổi", "chán sống", "kết liễu", "tôi sẽ chết", "muốn biến mất"
+        ]
+        normalized_input = user_input.lower().strip()
+        for keyword in emergency_keywords:
+            if keyword in normalized_input:
+                logger.warning(f"🚨 Phát hiện nguy cơ khẩn cấp với từ khóa: {keyword}")
+                return "emergency"
+        return "normal"
 
 def main():
     parser = argparse.ArgumentParser(description="Chatbot Inference")
