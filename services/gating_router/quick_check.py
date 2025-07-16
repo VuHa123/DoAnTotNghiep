@@ -11,6 +11,8 @@ class QuickCheckModel:
         
         # Load tokenizer và model từ thư mục best_model
         self.tokenizer = AutoTokenizer.from_pretrained(model_path)
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
         self.model = AutoModelForSequenceClassification.from_pretrained(model_path)
         self.model.to(self.device)
         self.model.eval()

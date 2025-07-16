@@ -12,16 +12,15 @@ def clean_special_tokens(text):
 def test_merged_model():
     print(f"Đang kiểm tra model tại: {output_path}")
     try:
+        # Load tokenizer trực tiếp từ checkpoint đã merge
         tokenizer = AutoTokenizer.from_pretrained(output_path)
-        # Đảm bảo các special token được set đúng
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
-        # Nếu cần, có thể set lại các token đặc biệt khác ở đây
         model = AutoModelForCausalLM.from_pretrained(output_path)
         model.eval()
         if torch.cuda.is_available():
             model = model.cuda()
-        input_text = "Xin chào, bạn khỏe không?"
+        input_text = "Xin chào, tôi muốn được tư vấn tâm lý"
         inputs = tokenizer(input_text, return_tensors="pt")
         if torch.cuda.is_available():
             inputs = {k: v.cuda() for k, v in inputs.items()}

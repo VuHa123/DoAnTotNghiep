@@ -17,7 +17,10 @@ model = None
 
 try:
     if os.path.exists(MODEL_DIR):
+        # Sử dụng tokenizer và model từ checkpoint đã fine-tune
         tokenizer = AutoTokenizer.from_pretrained(MODEL_DIR)
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
         model = AutoModelForSequenceClassification.from_pretrained(MODEL_DIR)
         model.eval()
         print(f"✅ Sentiment model loaded from {MODEL_DIR}")

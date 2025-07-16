@@ -80,7 +80,7 @@ def load_model():
             adapter_path = None
         
         # Load tokenizer
-        tokenizer = AutoTokenizer.from_pretrained(model_path)
+        tokenizer = AutoTokenizer.from_pretrained(adapter_path if adapter_path else model_path)
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
             

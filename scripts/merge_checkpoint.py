@@ -73,7 +73,7 @@ def merge_checkpoint_to_final_model(
         
         # Load tokenizer
         logger.info("Loading tokenizer...")
-        tokenizer = AutoTokenizer.from_pretrained(base_model_path)
+        tokenizer = AutoTokenizer.from_pretrained(checkpoint_path)
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
         

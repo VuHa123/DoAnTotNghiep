@@ -62,7 +62,7 @@ class ChatbotInference:
             
             # Load tokenizer
             logger.info("Loading tokenizer...")
-            self.tokenizer = AutoTokenizer.from_pretrained(base_model_path, use_fast=False)
+            self.tokenizer = AutoTokenizer.from_pretrained(checkpoint_path)
             if self.tokenizer.pad_token is None:
                 self.tokenizer.pad_token = self.tokenizer.eos_token
             
