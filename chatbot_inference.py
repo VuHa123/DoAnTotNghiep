@@ -24,6 +24,27 @@ load_dotenv("token.env")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+def clean_response(text):
+    """
+    Làm sạch các token và phần thừa trong output của mô hình
+    """
+    # Xoá token đặc biệt dạng <|...|> hoặc XML/template marker
+    text = re.sub(r'<\|.*?\|>', '', text)
+    # Xoá ký tự 'X' thường xuất hiện thừa đầu câu
+    text = text.replace('X', '')
+    # Xoá các chỉ thị bị sinh dư
+    garbage_patterns = [
+        r"Response \(bằng cách thay đổi\):",
+        r"Cảm ơn sự hiểu biết.*?",
+        r"hoặc.*$",                      # nếu sinh nhiều lựa chọn
+        r"### Instruction:.*",
+        r"### Input:.*",
+        r"### Response:"
+    ]
+    for pattern in garbage_patterns:
+        text = re.sub(pattern, '', text, flags=re.IGNORECASE)
+    return text.strip()
+
 class ChatbotInference:
     def __init__(self, checkpoint_name="checkpoint-1098"):
         """
@@ -97,33 +118,33 @@ class ChatbotInference:
                 raise RuntimeError("Model chưa được load. Gọi load_model() trước.")
             self.stop_event.clear()
             formatted_prompt = f"""### Instruction:\nBạn là một chatbot hỗ trợ tâm lý chuyên nghiệp. Hãy trả lời người dùng một cách thân thiện, đồng cảm và hữu ích.\n\n### Input:\n{prompt}\n\n### Response:\n"""
-            inputs = self.tokenizer(formatted_prompt, return_tensors="pt", truncation=True, max_length=512, padding=False)
+            inputs = self.tokenizer(
+                formatted_prompt,
+                return_tensors="pt",
+                truncation=True,
+                max_length=512,
+                padding=False
+            )
             inputs = {k: v.to(self.device) for k, v in inputs.items()}
-            output_ids = list(inputs["input_ids"][0].tolist())
-            attention_mask = inputs["attention_mask"][0].tolist()
-            for _ in range(max_new_tokens):
-                if self.stop_event.is_set():
-                    break
-                with torch.no_grad():
-                    outputs = self.model.generate(
-                        input_ids=torch.LongTensor([output_ids]).unsqueeze(0).to(self.device),
-                        attention_mask=torch.LongTensor([attention_mask]).to(self.device),
-                        max_new_tokens=1,
-                        temperature=temperature,
-                        top_p=top_p,
-                        do_sample=True,
-                        pad_token_id=self.tokenizer.eos_token_id,
-                        eos_token_id=self.tokenizer.eos_token_id,
-                        repetition_penalty=1.1
-                    )
-                new_token_id = outputs[0, -1].item()
-                output_ids.append(new_token_id)
-                attention_mask.append(1)
-                if new_token_id == self.tokenizer.eos_token_id:
-                    break
-            response = self.tokenizer.decode(output_ids, skip_special_tokens=True)
+            with torch.no_grad():
+                outputs = self.model.generate(
+                    input_ids=inputs["input_ids"],
+                    attention_mask=inputs["attention_mask"],
+                    max_new_tokens=max_new_tokens,
+                    temperature=temperature,
+                    top_p=top_p,
+                    do_sample=True,
+                    pad_token_id=self.tokenizer.eos_token_id,
+                    eos_token_id=self.tokenizer.eos_token_id,
+                    repetition_penalty=1.1
+                )
+            response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+            # Chỉ lấy phần sau ### Response:
             if "### Response:" in response:
                 response = response.split("### Response:")[-1].strip()
+            # Nếu vẫn còn ### Instruction hoặc ### Input do model sinh dư, loại bỏ chúng
+            response = re.split(r"### Instruction:|### Input:", response)[0].strip()
+            response = clean_response(response)
             return response
         except Exception as e:
             logger.error(f"❌ Error generating response: {e}")
@@ -192,7 +213,7 @@ def list_available_checkpoints():
             checkpoints.append("final_model")
     
     return checkpoints
-    def detect_emergency(self, user_input: str) -> str:
+def detect_emergency(self, user_input: str) -> str:
         """
         Phát hiện nguy cơ khẩn cấp (tự tử, làm hại bản thân...) từ input người dùng
         Args:
