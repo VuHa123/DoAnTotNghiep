@@ -397,7 +397,7 @@ def detect_emergency(self, user_input: str) -> str:
             str: 'emergency' nếu có nguy cơ khẩn cấp, 'normal' nếu không
         """
         emergency_keywords = [
-            "tự tử", "muốn chết", "kết thúc cuộc đời", "tự sát", "đau khổ quá",
+            "tự tử", "muốn chết", "kết thúc cuộc đời", "không muốn sống","tự sát", "đau khổ quá",
             "không thể chịu nổi", "chán sống", "kết liễu", "tôi sẽ chết", "muốn biến mất"
         ]
         normalized_input = user_input.lower().strip()
