@@ -32,7 +32,10 @@ SUMMARY_TRIGGER = 5
 
 def start_chat(goal):
     welcome = f"Bạn đã chọn: {goal}. Hãy bắt đầu chia sẻ nhé!"
-    return gr.update(visible=False), gr.update(visible=True), [], gr.update(value="", interactive=True), "😟 Cảm xúc hiện tại: Căng thẳng", STATE_MAIN, 0, False, welcome
+    greeting = "Chào bạn! Chúc bạn một ngày tốt lành! Tôi có thể giúp gì cho bạn"
+    # Khởi tạo chat_history đúng format tuple cho Gradio
+    chat_history = [("", greeting)]
+    return gr.update(visible=False), gr.update(visible=True), chat_history, gr.update(value="", interactive=True), STATE_MAIN, 0, False, welcome
 
 def chat_with_bot(user_input, chat_history, chat_goal, turn_count, summary_shown, ui_state):
     turn_count = (turn_count or 0) + 1
@@ -89,7 +92,7 @@ def save_summary():
     return "📝 Tóm tắt đã được lưu!"
 
 def end_chat():
-    return gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), gr.update(visible=False), [], gr.update(value="", interactive=True), "😟 Cảm xúc hiện tại: Căng thẳng", STATE_MAIN, 0, False, ""
+    return gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), gr.update(visible=False), [], gr.update(value="", interactive=True), STATE_MAIN, 0, False, ""
 
 def open_settings():
     return gr.update(visible=True)
@@ -152,7 +155,7 @@ def on_send_click_v2(user_input, chat_history, chatbot_ui, is_generating):
 
 def run_generation_v2(user_input, chat_history, chatbot_ui, chat_goal, turn_count, summary_shown, ui_state):
     # Sinh response bot, append vào cả chat_history và chatbot_ui
-    new_user_input, updated_history, emotion_status, new_ui_state, new_turn_count, new_summary_shown, welcome_text, banner_visible, _, _ = chat_with_bot(
+    new_user_input, updated_history, _, new_ui_state, new_turn_count, new_summary_shown, welcome_text, banner_visible, _, _ = chat_with_bot(
         user_input, chat_history, chat_goal, turn_count, summary_shown, ui_state
     )
     # Lấy message bot vừa trả lời
@@ -169,7 +172,7 @@ def run_generation_v2(user_input, chat_history, chatbot_ui, chat_goal, turn_coun
         else:
             chatbot_ui.append(("", last_bot_msg))
     return (
-        new_user_input, chatbot_ui, emotion_status, new_ui_state, new_turn_count,
+        new_user_input, chatbot_ui, new_ui_state, new_turn_count,
         new_summary_shown, welcome_text, banner_visible,
         gr.update(value="Gửi", interactive=True), False, updated_history, chatbot_ui
     )
@@ -180,6 +183,11 @@ def run_generation_v2(user_input, chat_history, chatbot_ui, chat_goal, turn_coun
 
 with gr.Blocks(
     css="""
+    .gr-chatbot, #chat-container {
+        max-height: none !important;
+        height: auto !important;
+        overflow-y: visible !important;
+    }
     #hotline-chatbox {
         position: fixed;
         right: 24px;
@@ -205,8 +213,7 @@ with gr.Blocks(
         padding: 20px;
         border-radius: 16px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        max-height: 500px;
-        overflow-y: auto;
+        overflow-y: visible;
     }
     .goal-card {
         border: 2px solid #ddd;
@@ -287,7 +294,7 @@ with gr.Blocks(
     with gr.Row(visible=False) as chat_screen:
         with gr.Column():
             chatbot_ui = gr.Chatbot(label="", height=300, show_copy_button=True)
-            emotion_status = gr.HTML('<span class="emotion-tag">😟 Cảm xúc hiện tại: Căng thẳng</span>')
+            
             user_input = gr.Textbox(placeholder="Nhập nội dung...", lines=3)
             with gr.Row():
                 send_btn = gr.Button("Gửi", elem_classes="send-button")
@@ -353,7 +360,7 @@ with gr.Blocks(
     start_btn.click(
         start_chat,
         inputs=[chat_goal],
-        outputs=[main_screen, chat_screen, chatbot_ui, user_input, emotion_status, ui_state, turn_count, summary_shown, welcome_text]
+        outputs=[main_screen, chat_screen, chatbot_ui, user_input, ui_state, turn_count, summary_shown, welcome_text]
     ).then(
         lambda *args: gr.update(value=[]),  # reset chat_history khi bắt đầu
         inputs=[],
@@ -368,7 +375,7 @@ with gr.Blocks(
     ).then(
         run_generation_v2,
         inputs=[user_input, chat_history, chatbot_ui, chat_goal, turn_count, summary_shown, ui_state],
-        outputs=[user_input, chatbot_ui, emotion_status, ui_state, turn_count, summary_shown, welcome_text, banner_warning, send_btn, is_generating, chat_history, chatbot_ui]
+        outputs=[user_input, chatbot_ui, ui_state, turn_count, summary_shown, welcome_text, banner_warning, send_btn, is_generating, chat_history, chatbot_ui]
     )
 
     continue_btn.click(
@@ -381,7 +388,7 @@ with gr.Blocks(
     save_summary_btn.click(save_summary, outputs=save_result)
     end_btn.click(
         end_chat,
-        outputs=[main_screen, chat_screen, emergency_screen, summary_screen, chatbot_ui, user_input, emotion_status, ui_state, turn_count, summary_shown, welcome_text]
+        outputs=[main_screen, chat_screen, emergency_screen, summary_screen, chatbot_ui, user_input, ui_state, turn_count, summary_shown, welcome_text]
     )
 
     settings_btn.click(open_settings, outputs=settings_screen)
