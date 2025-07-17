@@ -133,3 +133,6 @@ logs/
 Notebook/
 *.ipynb
 token.env
+
+__pycache__/
+*.pyc
