@@ -28,29 +28,45 @@ logger = logging.getLogger(__name__)
 
 def clean_response(text):
     """
-    Làm sạch các token và phần thừa trong output của mô hình
+    Làm sạch output của model một cách toàn diện hơn
     """
-    # Xoá token đặc biệt dạng <|...|> hoặc XML/template marker
+    import re
+    # Loại bỏ HTML tags và CSS
+    text = re.sub(r'<[^>]+>', '', text)
+    text = re.sub(r'font\s+color\s*[=:]\s*["\']?[^"\'>\s]*["\']?', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'style\s*[=:]\s*["\']?[^"\'>\s]*["\']?', '', text, flags=re.IGNORECASE)
+    
+    # Loại bỏ các từ ngoại ngữ thường xuất hiện
+    foreign_words = [
+        r'\bใจ\b',  # Thai
+        r'\bjemand\b',  # German  
+        r'\bultima\b', r'\búltimo\b',  # Spanish
+        r'\bdernière\b',  # French
+        r'\btیپ\b',  # Persian/Arabic
+        r'\bccccff\b', r'\bffffff\b',  # Hex colors
+        r'\bCOLOR\b', r'\bred\b(?=\s)',  # CSS terms
+    ]
+    for pattern in foreign_words:
+        text = re.sub(pattern, '', text, flags=re.IGNORECASE)
+    # Loại bỏ token đặc biệt
     text = re.sub(r'<\|.*?\|>', '', text)
-    # Xoá các token đặc biệt còn sót lại (ví dụ: <|, |>, <s>, </s>, v.v.)
     text = re.sub(r'<\/?[a-zA-Z0-9_\-]+>', '', text)
-    # Cắt output tại các token không mong muốn hoặc ngôn ngữ lạ xuất hiện (ví dụ: " última ", " dernière ", " último ", "تیپ", ...)
-    text = re.split(r'(última|dernière|último|تیپ|trình duyệt|browser|last post|bài đăng của bạn là:)', text)[0]
-    # Xoá ký tự 'X' thường xuất hiện thừa đầu câu
-    text = text.replace('X', '')
-    # Xoá các chỉ thị bị sinh dư
+    # Loại bỏ các cụm từ lạ
     garbage_patterns = [
-        r"Response \(bằng cách thay đổi\):",
-        r"Cảm ơn sự hiểu biết.*?",
-        r"hoặc.*$",                      # nếu sinh nhiều lựa chọn
-        r"### Instruction:.*",
-        r"### Input:.*",
-        r"### Response:"
+        r'### Instruction:.*',
+        r'### Input:.*',
+        r'### Response:.*',
+        r'Response \(bằng cách thay đổi\):',
+        r'font\s+color.*?"',
+        r'style\s*=.*?"',
+        r'\b[a-fA-F0-9]{6}\b',  # Hex colors
     ]
     for pattern in garbage_patterns:
         text = re.sub(pattern, '', text, flags=re.IGNORECASE)
-    # Xoá các ký tự không phải tiếng Việt, tiếng Anh, số, dấu câu cơ bản
-    text = re.sub(r'[^\w\s\.,!?;:()\-–—"“”‘’…áàảãạăắằẳẵặâấầẩẫậéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵđA-ZÁÀẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬÉÈẺẼẸÊẾỀỂỄỆÍÌỈĨỊÓÒỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÚÙỦŨỤƯỨỪỬỮỰÝỲỶỸỴĐ]+', ' ', text)
+    # Chỉ giữ lại ký tự tiếng Việt, tiếng Anh, số và dấu câu cơ bản
+    text = re.sub(r'[^\w\s\.,!?;:()\-–—"""''…áàảãạăắằẳẵặâấầẩẫậéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵđA-ZÁÀẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬÉÈẺẼẸÊẾỀỂỄỆÍÌỈĨỊÓÒỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÚÙỦŨỤƯỨỪỬỮỰÝỲỶỸỴĐ]+', ' ', text)
+    # Loại bỏ khoảng trắng thừa
+    text = re.sub(r'\s+', ' ', text)
     return text.strip()
 
 class ChatbotInference:
@@ -129,17 +145,13 @@ class ChatbotInference:
             is_first_turn = False
             if isinstance(prompt, str) and ('\n' not in prompt) and (len(prompt.split()) < 40):
                 is_first_turn = True
-            # Prompt hội thoại tự nhiên
-            formatted_prompt = (
-                f"Bạn là một người bạn tâm lý, hãy trả lời ngắn gọn, thân thiện cho câu hỏi sau:\n"
-                f"{prompt}\n"
-                f"Chỉ trả lời đúng vai trò của một chatbot, không đưa ra ví dụ, không hướng dẫn."
-            )
+            # Prompt hội thoại chuyên nghiệp, rõ ràng
+            formatted_prompt = f"""### Instruction:\nBạn là chatbot hỗ trợ tâm lý chuyên nghiệp. Quy tắc quan trọng:\n- Chỉ trả lời bằng tiếng Việt\n- Không sử dụng HTML, CSS, hoặc code \n- Phản hồi ngắn gọn, tự nhiên (2-3 câu)\n- Thân thiện và đồng cảm\n\n### Input:\n{prompt}\n\n### Response:\n"""
             inputs = self.tokenizer(
                 formatted_prompt,
                 return_tensors="pt",
                 truncation=True,
-                max_length=512,
+                max_length=1024,
                 padding=False
             )
             inputs = {k: v.to(self.device) for k, v in inputs.items()}
@@ -153,18 +165,24 @@ class ChatbotInference:
                     do_sample=True,
                     pad_token_id=self.tokenizer.eos_token_id,
                     eos_token_id=self.tokenizer.eos_token_id,
-                    repetition_penalty=1.1
+                    repetition_penalty=1.2#giảm lặp lại nội dung
                 )
             response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-            # Xử lý lấy phần trả lời thực sự
-            response = re.split(r"### Instruction:|### Input:|### End|### System|### User|###", response)[0]
-            response_lines = response.splitlines()
-            filtered_lines = [line for line in response_lines if not re.match(r"^\s*(instruction|hướng dẫn|system|input|response|user)[:：]", line, re.IGNORECASE)]
-            response = "\n".join(filtered_lines).strip()
+            # Tách phần response
+            if "### Response:" in response:
+                response = response.split("### Response:")[-1]
+            # Dừng tại các marker không mong muốn
+            for marker in ["### Instruction:", "### Input:", "###", "font", "color", "style"]:
+                if marker in response:
+                    response = response.split(marker)[0]
             response = clean_response(response)
+            # Giới hạn độ dài để tránh văn bản dài dòng
+            sentences = response.split('.')
+            if len(sentences) > 5:
+                response = '. '.join(sentences[:5]) + '.'
             # Nếu là lượt chat đầu tiên, thêm câu chào và chúc
             if is_first_turn:
-                response = f"Xin chào bạn! Chúc bạn một ngày tốt lành!\n{response}"
+                response = f"{response}"
             return response
         except Exception as e:
             logger.error(f"❌ Error generating response: {e}")
