@@ -150,6 +150,130 @@ class ChatbotInference:
             logger.error(f"❌ Error generating response: {e}")
             return "Xin lỗi, tôi đang gặp sự cố kỹ thuật. Vui lòng thử lại sau."
     
+    def generate_response_streaming(self, prompt, max_new_tokens=200, temperature=0.7, top_p=0.9):
+        """
+        Sinh phản hồi từng token (streaming), có log thời gian từng bước
+        Trả về một generator để stream ra từng phần nội dung
+        """
+        import time
+        try:
+            if self.model is None or self.tokenizer is None:
+                raise RuntimeError("Model chưa được load. Gọi load_model() trước.")
+            self.stop_event.clear()
+
+            logger.debug("🔧 Bắt đầu format prompt...")
+            formatted_prompt = f"""### Instruction:\nBạn là một chatbot hỗ trợ tâm lý chuyên nghiệp. Hãy trả lời người dùng một cách thân thiện, đồng cảm và hữu ích.\n\n### Input:\n{prompt}\n\n### Response:\n"""
+
+            # --- TOKENIZE ---
+            t0 = time.time()
+            inputs = self.tokenizer(
+                formatted_prompt,
+                return_tensors="pt",
+                truncation=True,
+                max_length=512,
+                padding=False
+            )
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+            t1 = time.time()
+            logger.debug(f"⏱️ Tokenize time: {t1 - t0:.2f}s")
+
+            # --- GENERATE ---
+            logger.debug("🚀 Bắt đầu generate (streaming)...")
+            with torch.no_grad():
+                start_gen = time.time()
+                outputs = self.model.generate(
+                    input_ids=inputs["input_ids"],
+                    attention_mask=inputs["attention_mask"],
+                    max_new_tokens=max_new_tokens,
+                    temperature=temperature,
+                    top_p=top_p,
+                    do_sample=True,
+                    pad_token_id=self.tokenizer.eos_token_id,
+                    eos_token_id=self.tokenizer.eos_token_id,
+                    repetition_penalty=1.1
+                )
+                end_gen = time.time()
+                logger.debug(f"⏱️ Generate time: {end_gen - start_gen:.2f}s")
+
+            # --- DECODE ---
+            start_decode = time.time()
+            response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+            logger.debug(f"⏱️ Decode time: {time.time() - start_decode:.2f}s")
+
+            # Tách phần sau "### Response:"
+            if "### Response:" in response:
+                response = response.split("### Response:")[-1].strip()
+            response = re.split(r"### Instruction:|### Input:", response)[0].strip()
+            response = clean_response(response)
+
+            # Stream từng dòng (bạn có thể chia nhỏ hơn nữa nếu cần)
+            for line in response.split("\n"):
+                if self.stop_event.is_set():
+                    logger.warning("🛑 Dừng sinh phản hồi giữa chừng.")
+                    break
+                yield line.strip()
+
+        except Exception as e:
+            logger.error(f"❌ Error (streaming): {e}")
+            yield "Xin lỗi, tôi đang gặp sự cố kỹ thuật."
+    
+    def generate_response_token_streaming(self, prompt, max_new_tokens=200, temperature=0.7, top_p=0.9):
+        """
+        Stream từng token (hoặc đoạn text) khi model sinh ra, dùng TextIteratorStreamer.
+        """
+        from transformers import TextIteratorStreamer
+        import threading
+        import time
+        if self.model is None or self.tokenizer is None:
+            raise RuntimeError("Model chưa được load. Gọi load_model() trước.")
+        self.stop_event.clear()
+
+        formatted_prompt = f"""### Instruction:\nBạn là một chatbot hỗ trợ tâm lý chuyên nghiệp. Hãy trả lời người dùng một cách thân thiện, đồng cảm và hữu ích.\n\n### Input:\n{prompt}\n\n### Response:\n"""
+
+        # Tokenize
+        t0 = time.time()
+        inputs = self.tokenizer(
+            formatted_prompt,
+            return_tensors="pt",
+            truncation=True,
+            max_length=512,
+            padding=False
+        )
+        inputs = {k: v.to(self.device) for k, v in inputs.items()}
+        t1 = time.time()
+        logger.debug(f"⏱️ Tokenize time: {t1 - t0:.2f}s")
+
+        # Tạo streamer
+        streamer = TextIteratorStreamer(self.tokenizer, skip_prompt=True, skip_special_tokens=True)
+
+        # Tạo thread để sinh text
+        def generation_thread():
+            with torch.no_grad():
+                self.model.generate(
+                    input_ids=inputs["input_ids"],
+                    attention_mask=inputs["attention_mask"],
+                    max_new_tokens=max_new_tokens,
+                    temperature=temperature,
+                    top_p=top_p,
+                    do_sample=True,
+                    pad_token_id=self.tokenizer.eos_token_id,
+                    eos_token_id=self.tokenizer.eos_token_id,
+                    repetition_penalty=1.1,
+                    streamer=streamer
+                )
+
+        thread = threading.Thread(target=generation_thread)
+        thread.start()
+
+        # Lấy từng token/text từ streamer
+        for new_text in streamer:
+            if self.stop_event.is_set():
+                logger.warning("🛑 Dừng sinh phản hồi giữa chừng.")
+                break
+            yield new_text  # Có thể là token hoặc đoạn text
+
+        thread.join()
+    
     def test_inference(self):
         """Test inference với các prompt mẫu"""
         logger.info("🧪 Testing inference...")

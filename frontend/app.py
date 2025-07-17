@@ -102,13 +102,32 @@ def hotline_click():
 
 # ======== NÚT GỬI ↔ TẠM DỪNG =========
 
+def convert_history_for_gradio(chat_history):
+    result = []
+    user_msg = None
+    for msg in chat_history:
+        if msg["role"] == "user":
+            user_msg = msg["content"]
+        elif msg["role"] == "assistant":
+            if user_msg is not None:
+                result.append((user_msg, msg["content"]))
+            user_msg = None
+    # Nếu còn user_msg mà chưa có assistant trả lời, vẫn hiển thị
+    if user_msg is not None:
+        result.append((user_msg, ""))
+    return result
+
 def on_send_click(user_input, chat_history, is_generating):
     if not is_generating:
         if hasattr(chatbot, 'stop_event'):
             chatbot.stop_event.clear()
+        # Thêm user message vào history để hiển thị ngay
+        chat_history = chat_history or []
+        if user_input.strip():
+            chat_history.append({"role": "user", "content": user_input})
         return (
             gr.update(value="", interactive=True),
-            chat_history,
+            convert_history_for_gradio(chat_history),
             gr.update(value="Tạm dừng", interactive=True),
             True
         )
@@ -117,7 +136,7 @@ def on_send_click(user_input, chat_history, is_generating):
             chatbot.stop_event.set()
         return (
             gr.update(value=user_input, interactive=True),
-            chat_history,
+            convert_history_for_gradio(chat_history),
             gr.update(value="Gửi", interactive=True),
             False
         )
@@ -127,7 +146,7 @@ def run_generation(user_input, chat_history, chat_goal, turn_count, summary_show
         user_input, chat_history, chat_goal, turn_count, summary_shown, ui_state
     )
     return (
-        new_user_input, updated_history, emotion_status, new_ui_state, new_turn_count,
+        new_user_input, convert_history_for_gradio(updated_history), emotion_status, new_ui_state, new_turn_count,
         new_summary_shown, welcome_text,
         banner_visible,
         gr.update(value="Gửi", interactive=True),
@@ -140,55 +159,127 @@ def run_generation(user_input, chat_history, chat_goal, turn_count, summary_show
 
 with gr.Blocks(
     css="""
-    body { background: #e3f6fd !important; }
-    #chat-container { background: #e3f6fd; }
+    body { background: #e3f6fd !important; font-family: 'Segoe UI', sans-serif; }
+    #chat-container {
+        background-color: #fafdff;
+        padding: 20px;
+        border-radius: 16px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        max-height: 500px;
+        overflow-y: auto;
+    }
+    .goal-card {
+        border: 2px solid #b3e0ff;
+        border-radius: 16px;
+        padding: 12px 16px;
+        text-align: center;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        background: #e3f6fd;
+        transition: 0.2s;
+        color: #0288d1;
+    }
+    .goal-card:hover {
+        border-color: #0288d1;
+        background-color: #d0ebff;
+        color: #015a8c;
+    }
+    .emotion-tag {
+        background: #d0ebff;
+        color: #0288d1;
+        padding: 6px 12px;
+        border-radius: 9999px;
+        font-weight: 600;
+        display: inline-block;
+        margin-bottom: 10px;
+    }
+    .chat-message {
+        border-radius: 18px !important;
+        padding: 10px 14px;
+        margin: 6px 0;
+        max-width: 70%;
+    }
+    .chat-message.user {
+        background-color: #b3e0ff;
+        align-self: flex-end;
+        margin-left: auto;
+        border-radius: 18px 18px 4px 18px !important;
+        color: #015a8c;
+    }
+    .chat-message.bot {
+        background-color: #fafdff;
+        align-self: flex-start;
+        margin-right: auto;
+        border-radius: 18px 18px 18px 4px !important;
+        color: #0288d1;
+    }
+    .send-button {
+        background-color: #0288d1 !important;
+        color: white !important;
+        font-weight: bold;
+        border-radius: 9999px !important;
+        padding: 12px 24px !important;
+        border: none;
+        box-shadow: 0 2px 8px #b3e0ff33;
+    }
+    .send-button:hover {
+        background-color: #015a8c !important;
+    }
     #hotline-chatbox {
         position: fixed;
-        bottom: 16px;
-        right: 16px;
+        right: 24px;
+        bottom: 24px;
+        background-color: #e3f6fd;
+        border: 1.5px solid #0288d1;
+        border-radius: 10px;
+        box-shadow: 0 2px 6px #b3e0ff55;
         display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 8px 12px;
-        background-color: white;
-        border: 1px solid #0288d1;
-        border-radius: 10px;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        gap: 8px;
+        padding: 10px 18px;
+        z-index: 1000;
         cursor: pointer;
-        z-index: 100;
+        transition: background 0.2s;
     }
     #hotline-chatbox:hover {
-        background-color: #e0f7fa;
+        background-color: #d0ebff;
     }
     """
 ) as demo:
+    # Main screen (ẩn/hiện qua callback)
     with gr.Row(visible=True) as main_screen:
         with gr.Column():
             gr.Markdown("## 🧠 MENTALBOT\nTrò chuyện tâm lý cùng bạn")
             gr.Markdown("👋 **Xin chào! Bạn muốn tôi hỗ trợ gì hôm nay?**")
-            chat_goal = gr.Radio(choices=list(chat_goals), label="", interactive=True)
-            start_btn = gr.Button("Bắt đầu", variant="primary")
+            chat_goal = gr.Radio(choices=list(chat_goals), label=None, interactive=True, elem_classes="goal-card")
+            start_btn = gr.Button("Bắt đầu", variant="primary", elem_classes="send-button")
         settings_btn = gr.Button("⚙️ Tuỳ chọn", variant="secondary")
         welcome_text = gr.Markdown(visible=False)
 
+    # Chat screen (ẩn/hiện qua callback)
     with gr.Row(visible=False) as chat_screen:
         with gr.Column():
-            chatbot_ui = gr.Chatbot(label="", height=300, type="messages")
-            emotion_status = gr.Textbox(label="", interactive=False, value="😟 Cảm xúc hiện tại: Căng thẳng")
-            user_input = gr.Textbox(placeholder="Nhập nội dung...", label="", lines=2)
-            send_btn = gr.Button("Gửi", variant="primary")
-            hotline_html = gr.HTML(
-                """
-                <div id="hotline-chatbox" onclick="window.open('tel:0963061414')">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                        <circle cx="12" cy="12" r="12" fill="#0288d1"/>
-                        <path d="M17 15.5c-.9 0-1.8-.2-2.6-.4-.4-.1-.8 0-1 .3l-.8 1.3c-2.4-1.3-4.3-3.2-5.6-5.6l1.3-.8c.3-.2.4-.6.3-1-.2-.8-.4-1.7-.4-2.6 0-.5-.3-.8-.8-.8H6c-.5 0-.8.3-.8.8C5.2 17.1 10.9 22.8 18 22.8c.5 0 .8-.3.8-.8v-2.2c0-.5-.3-.8-.8-.8z" fill="#fff"></path>
-                    </svg>
-                    <span style="font-weight:bold; font-size:16px; color:#0288d1;">Hotline: 096.306.1414</span>
-                </div>
-                """,
-                visible=True
-            )
+            chatbot_ui = gr.Chatbot(label="", height=300, show_copy_button=True)
+            emotion_status = gr.HTML('<span class="emotion-tag">😟 Cảm xúc hiện tại: Căng thẳng</span>')
+            user_input = gr.Textbox(placeholder="Nhập nội dung...", lines=3)
+            with gr.Row():
+                send_btn = gr.Button("Gửi", elem_classes="send-button")
+                stop_btn = gr.Button("⏸️ Tạm dừng", visible=False)
+
+    # Hotline fixed chatbox (luôn hiển thị góc phải dưới)
+    hotline_html = gr.HTML(
+        '''
+        <div id="hotline-chatbox" onclick="window.open('tel:0963061414')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="12" fill="#0288d1"/>
+                <path d="M17 15.5c-.9 0-1.8-.2-2.6-.4-.4-.1-.8 0-1 .3l-.8 1.3c-2.4-1.3-4.3-3.2-5.6-5.6l1.3-.8c.3-.2.4-.6.3-1-.2-.8-.4-1.7-.4-2.6 0-.5-.3-.8-.8-.8H6c-.5 0-.8.3-.8.8C5.2 17.1 10.9 22.8 18 22.8c.5 0 .8-.3.8-.8v-2.2c0-.5-.3-.8-.8-.8z" fill="#fff"></path>
+            </svg>
+            <span style="font-weight:bold; font-size:16px; color:#0288d1;">Hotline: 096.306.1414</span>
+        </div>
+        ''',
+        visible=True
+    )
 
     banner_warning = gr.HTML('<div id="banner-warning" class="banner-warning">🚨 CẢNH BÁO: Nếu bạn đang gặp nguy hiểm hoặc có ý định tự làm hại bản thân, hãy gọi ngay <b>Hotline 096.306.1414</b> hoặc liên hệ người thân!</div>', visible=False)
 
