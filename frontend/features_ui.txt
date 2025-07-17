@@ -1,0 +1,43 @@
+MentalBot - Giao diện trò chuyện tâm lý
+========================================
+
+Các tính năng và đặc điểm nổi bật của giao diện:
+
+1. **Chọn mục tiêu trò chuyện**
+   - Người dùng có thể chọn mục tiêu: Trút bầu tâm sự, Hiểu rõ bản thân, Vượt qua cảm xúc tiêu cực.
+
+2. **Giao diện thân thiện, hiện đại**
+   - Sử dụng tông màu pastel dịu nhẹ, bố cục rõ ràng, dễ sử dụng.
+   - Các thành phần được bo góc, đổ bóng nhẹ tạo cảm giác an toàn, gần gũi.
+
+3. **Hiển thị lịch sử trò chuyện nhiều lượt (multi-turn)**
+   - Toàn bộ các lượt trao đổi giữa user và bot đều được hiển thị liên tục.
+   - Khi user gửi tin nhắn, nội dung sẽ xuất hiện ngay lập tức trong khung chat, không cần đợi bot trả lời.
+
+4. **Phản hồi cảm xúc trực quan**
+   - Hiển thị trạng thái cảm xúc hiện tại bằng icon và mô tả (ví dụ: 😟 Căng thẳng).
+   - Có thể bật/tắt hiển thị icon cảm xúc.
+
+5. **Cảnh báo khẩn cấp & hỗ trợ hotline**
+   - Tự động phát hiện từ khóa nguy hiểm (tự tử, tuyệt vọng, v.v.) và chuyển sang chế độ khẩn cấp.
+   - Hiển thị banner cảnh báo và nút gọi hotline nổi bật ở góc dưới bên phải.
+   - Cho phép gọi nhanh tới tổng đài hỗ trợ tâm lý.
+
+6. **Tóm tắt cảm xúc sau nhiều lượt chat**
+   - Sau một số lượt trò chuyện, giao diện sẽ gợi ý tóm tắt cảm xúc và cho phép lưu lại.
+
+7. **Tạm dừng sinh phản hồi**
+   - Nút "Tạm dừng" cho phép dừng sinh phản hồi của bot bất cứ lúc nào.
+
+8. **Tuỳ chọn giao diện**
+   - Cho phép người dùng bật/tắt các tính năng như: giao diện pastel, giọng điệu nhẹ nhàng, hiển thị cảm xúc, trạng thái tâm lý, chọn ngôn ngữ.
+
+9. **Tối ưu cho thiết bị di động và desktop**
+   - Giao diện responsive, dễ sử dụng trên cả máy tính và điện thoại.
+
+10. **Bảo mật & riêng tư**
+    - Không lưu trữ thông tin cá nhân, chỉ tập trung hỗ trợ tâm lý.
+
+---
+
+*Phiên bản cập nhật: tháng 6/2024* 

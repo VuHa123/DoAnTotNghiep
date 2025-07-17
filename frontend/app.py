@@ -7,7 +7,7 @@ from chatbot_inference import ChatbotInference
 # Khởi tạo model fine-tune
 chatbot = ChatbotInference(checkpoint_name="checkpoint-1098")
 chatbot.load_model()
-chatbot.stop_event.clear()
+# chatbot.stop_event.clear()
 
 chat_goals = [
     "Trút bầu tâm sự 😢",
@@ -107,50 +107,71 @@ def convert_history_for_gradio(chat_history):
     user_msg = None
     for msg in chat_history:
         if msg["role"] == "user":
+            if user_msg is not None:
+                # Nếu có user_msg trước đó mà chưa có assistant, vẫn hiển thị
+                result.append((user_msg, ""))
             user_msg = msg["content"]
         elif msg["role"] == "assistant":
             if user_msg is not None:
                 result.append((user_msg, msg["content"]))
-            user_msg = None
-    # Nếu còn user_msg mà chưa có assistant trả lời, vẫn hiển thị
+                user_msg = None
+            else:
+                # Nếu có assistant mà không có user trước đó (hiếm gặp)
+                result.append(("", msg["content"]))
     if user_msg is not None:
         result.append((user_msg, ""))
     return result
 
-def on_send_click(user_input, chat_history, is_generating):
+def on_send_click_v2(user_input, chat_history, chatbot_ui, is_generating):
+    # Khi user gửi, append user message vào cả chat_history và chatbot_ui
     if not is_generating:
-        if hasattr(chatbot, 'stop_event'):
-            chatbot.stop_event.clear()
-        # Thêm user message vào history để hiển thị ngay
+        # Cập nhật chat_history (logic) và chatbot_ui (hiển thị)
         chat_history = chat_history or []
-        if user_input.strip():
-            chat_history.append({"role": "user", "content": user_input})
+        chatbot_ui = chatbot_ui or []
+        chat_history.append({"role": "user", "content": user_input})
+        chatbot_ui.append((user_input, ""))
         return (
             gr.update(value="", interactive=True),
-            convert_history_for_gradio(chat_history),
+            chatbot_ui,
             gr.update(value="Tạm dừng", interactive=True),
-            True
+            True,
+            chat_history,
+            chatbot_ui,
+            user_input
         )
     else:
-        if hasattr(chatbot, 'stop_event'):
-            chatbot.stop_event.set()
         return (
             gr.update(value=user_input, interactive=True),
-            convert_history_for_gradio(chat_history),
+            chatbot_ui,
             gr.update(value="Gửi", interactive=True),
-            False
+            False,
+            chat_history,
+            chatbot_ui,
+            user_input
         )
 
-def run_generation(user_input, chat_history, chat_goal, turn_count, summary_shown, ui_state):
+def run_generation_v2(user_input, chat_history, chatbot_ui, chat_goal, turn_count, summary_shown, ui_state):
+    # Sinh response bot, append vào cả chat_history và chatbot_ui
     new_user_input, updated_history, emotion_status, new_ui_state, new_turn_count, new_summary_shown, welcome_text, banner_visible, _, _ = chat_with_bot(
         user_input, chat_history, chat_goal, turn_count, summary_shown, ui_state
     )
+    # Lấy message bot vừa trả lời
+    last_bot_msg = None
+    for msg in reversed(updated_history):
+        if msg["role"] == "assistant":
+            last_bot_msg = msg["content"]
+            break
+    chatbot_ui = chatbot_ui or []
+    if last_bot_msg is not None:
+        # Append bot response vào cặp cuối cùng (user, "")
+        if chatbot_ui and chatbot_ui[-1][1] == "":
+            chatbot_ui[-1] = (chatbot_ui[-1][0], last_bot_msg)
+        else:
+            chatbot_ui.append(("", last_bot_msg))
     return (
-        new_user_input, convert_history_for_gradio(updated_history), emotion_status, new_ui_state, new_turn_count,
-        new_summary_shown, welcome_text,
-        banner_visible,
-        gr.update(value="Gửi", interactive=True),
-        False
+        new_user_input, chatbot_ui, emotion_status, new_ui_state, new_turn_count,
+        new_summary_shown, welcome_text, banner_visible,
+        gr.update(value="Gửi", interactive=True), False, updated_history, chatbot_ui
     )
 
 
@@ -159,73 +180,6 @@ def run_generation(user_input, chat_history, chat_goal, turn_count, summary_show
 
 with gr.Blocks(
     css="""
-    body { background: #e3f6fd !important; font-family: 'Segoe UI', sans-serif; }
-    #chat-container {
-        background-color: #fafdff;
-        padding: 20px;
-        border-radius: 16px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        max-height: 500px;
-        overflow-y: auto;
-    }
-    .goal-card {
-        border: 2px solid #b3e0ff;
-        border-radius: 16px;
-        padding: 12px 16px;
-        text-align: center;
-        font-size: 16px;
-        font-weight: 500;
-        cursor: pointer;
-        background: #e3f6fd;
-        transition: 0.2s;
-        color: #0288d1;
-    }
-    .goal-card:hover {
-        border-color: #0288d1;
-        background-color: #d0ebff;
-        color: #015a8c;
-    }
-    .emotion-tag {
-        background: #d0ebff;
-        color: #0288d1;
-        padding: 6px 12px;
-        border-radius: 9999px;
-        font-weight: 600;
-        display: inline-block;
-        margin-bottom: 10px;
-    }
-    .chat-message {
-        border-radius: 18px !important;
-        padding: 10px 14px;
-        margin: 6px 0;
-        max-width: 70%;
-    }
-    .chat-message.user {
-        background-color: #b3e0ff;
-        align-self: flex-end;
-        margin-left: auto;
-        border-radius: 18px 18px 4px 18px !important;
-        color: #015a8c;
-    }
-    .chat-message.bot {
-        background-color: #fafdff;
-        align-self: flex-start;
-        margin-right: auto;
-        border-radius: 18px 18px 18px 4px !important;
-        color: #0288d1;
-    }
-    .send-button {
-        background-color: #0288d1 !important;
-        color: white !important;
-        font-weight: bold;
-        border-radius: 9999px !important;
-        padding: 12px 24px !important;
-        border: none;
-        box-shadow: 0 2px 8px #b3e0ff33;
-    }
-    .send-button:hover {
-        background-color: #015a8c !important;
-    }
     #hotline-chatbox {
         position: fixed;
         right: 24px;
@@ -244,6 +198,78 @@ with gr.Blocks(
     }
     #hotline-chatbox:hover {
         background-color: #d0ebff;
+    }
+    body { background: #e3f6fd !important; font-family: 'Segoe UI', sans-serif; }
+    #chat-container {
+        background-color: #f6fbff;
+        padding: 20px;
+        border-radius: 16px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        max-height: 500px;
+        overflow-y: auto;
+    }
+    .goal-card {
+        border: 2px solid #ddd;
+        border-radius: 16px;
+        padding: 12px 16px;
+        text-align: center;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        background: white;
+        transition: 0.2s;
+    }
+    .goal-card:hover {
+        border-color: #3498db;
+        background-color: #e3f6fd;
+    }
+    .emotion-tag {
+        background: #e3f6fd;
+        color: #0288d1;
+        padding: 6px 12px;
+        border-radius: 9999px;
+        font-weight: 600;
+        display: inline-block;
+        margin-bottom: 10px;
+    }
+    .send-button {
+        background-color: #0288d1 !important;
+        color: white !important;
+        font-weight: bold;
+        border-radius: 9999px !important;
+        padding: 12px 24px !important;
+        border: none;
+    }
+    .send-button:hover {
+        background-color: #0277bd !important;
+    }
+    /* Chatbot custom bubble */
+    .gr-chatbot .message.user {
+        background: #b3e5fc !important;
+        color: #01579b !important;
+        border-radius: 18px 18px 4px 18px !important;
+        align-self: flex-end !important;
+        margin-left: auto !important;
+        margin-right: 0 !important;
+        text-align: right;
+        box-shadow: 0 2px 8px rgba(2,136,209,0.07);
+    }
+    .gr-chatbot .message.bot {
+        background: #e3f6fd !important;
+        color: #01579b !important;
+        border-radius: 18px 18px 18px 4px !important;
+        align-self: flex-start !important;
+        margin-right: auto !important;
+        margin-left: 0 !important;
+        text-align: left;
+        box-shadow: 0 2px 8px rgba(2,136,209,0.04);
+    }
+    .gr-chatbot .message {
+        max-width: 70%;
+        padding: 12px 18px;
+        margin: 8px 0;
+        font-size: 16px;
+        line-height: 1.6;
     }
     """
 ) as demo:
@@ -266,23 +292,28 @@ with gr.Blocks(
             with gr.Row():
                 send_btn = gr.Button("Gửi", elem_classes="send-button")
                 stop_btn = gr.Button("⏸️ Tạm dừng", visible=False)
+            # Thêm biến chat_history (ẩn) để lưu lịch sử dạng list dict
+            chat_history = gr.State([])
 
-    # Hotline fixed chatbox (luôn hiển thị góc phải dưới)
-    hotline_html = gr.HTML(
-        '''
-        <div id="hotline-chatbox" onclick="window.open('tel:0963061414')">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="12" fill="#0288d1"/>
-                <path d="M17 15.5c-.9 0-1.8-.2-2.6-.4-.4-.1-.8 0-1 .3l-.8 1.3c-2.4-1.3-4.3-3.2-5.6-5.6l1.3-.8c.3-.2.4-.6.3-1-.2-.8-.4-1.7-.4-2.6 0-.5-.3-.8-.8-.8H6c-.5 0-.8.3-.8.8C5.2 17.1 10.9 22.8 18 22.8c.5 0 .8-.3.8-.8v-2.2c0-.5-.3-.8-.8-.8z" fill="#fff"></path>
-            </svg>
-            <span style="font-weight:bold; font-size:16px; color:#0288d1;">Hotline: 096.306.1414</span>
-        </div>
-        ''',
+    
+    # Hotline nổi góc dưới bên phải
+    hotline_floating = gr.HTML(
+        '''<div id="hotline-chatbox" onclick="document.getElementById('hotline-btn').click()">
+            <span style="font-size:20px;">☎️</span>
+            <span style="font-weight:600; color:#0288d1;">Hotline: 096.306.1414</span>
+        </div>''',
         visible=True
     )
 
+    # Đảm bảo hotline-btn (ẩn) để trigger sự kiện click
+    hotline_btn = gr.Button("📞 Hotline: 096.306.1414", elem_id="hotline-btn", visible=False)
+    hotline_result = gr.Textbox(label="", interactive=False, visible=False)
+
+    # Đảm bảo KHÔNG có bất kỳ gr.HTML, gr.Button hoặc CSS nào tạo hotline ở góc dưới bên trái
+
     banner_warning = gr.HTML('<div id="banner-warning" class="banner-warning">🚨 CẢNH BÁO: Nếu bạn đang gặp nguy hiểm hoặc có ý định tự làm hại bản thân, hãy gọi ngay <b>Hotline 096.306.1414</b> hoặc liên hệ người thân!</div>', visible=False)
 
+    # Nút hotline chỉ xuất hiện trong màn hình khẩn cấp
     hotline_btn = gr.Button("📞 Hotline: 096.306.1414", elem_id="hotline-btn", visible=False)
     hotline_result = gr.Textbox(label="", interactive=False, visible=False)
 
@@ -318,25 +349,26 @@ with gr.Blocks(
     summary_shown = gr.State(False)
     is_generating = gr.State(False)
 
+    # Sửa callback để truyền đúng chat_history (list dict) cho logic, chatbot_ui chỉ dùng cho hiển thị
     start_btn.click(
         start_chat,
         inputs=[chat_goal],
         outputs=[main_screen, chat_screen, chatbot_ui, user_input, emotion_status, ui_state, turn_count, summary_shown, welcome_text]
+    ).then(
+        lambda *args: gr.update(value=[]),  # reset chat_history khi bắt đầu
+        inputs=[],
+        outputs=[chat_history]
     )
 
+    # Sử dụng callback mới cho send_btn
     send_btn.click(
-        on_send_click,
-        inputs=[user_input, chatbot_ui, is_generating],
-        outputs=[user_input, chatbot_ui, send_btn, is_generating]
+        on_send_click_v2,
+        inputs=[user_input, chat_history, chatbot_ui, is_generating],
+        outputs=[user_input, chatbot_ui, send_btn, is_generating, chat_history, chatbot_ui, user_input]
     ).then(
-        run_generation,
-        inputs=[user_input, chatbot_ui, chat_goal, turn_count, summary_shown, ui_state],
-        outputs=[
-            user_input, chatbot_ui, emotion_status, ui_state,
-            turn_count, summary_shown, welcome_text,
-            banner_warning, send_btn, is_generating
-        ],
-        show_progress="full"
+        run_generation_v2,
+        inputs=[user_input, chat_history, chatbot_ui, chat_goal, turn_count, summary_shown, ui_state],
+        outputs=[user_input, chatbot_ui, emotion_status, ui_state, turn_count, summary_shown, welcome_text, banner_warning, send_btn, is_generating, chat_history, chatbot_ui]
     )
 
     continue_btn.click(
