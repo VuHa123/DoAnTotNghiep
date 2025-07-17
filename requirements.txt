@@ -92,6 +92,8 @@ starlette==0.47.1
 sympy==1.14.0
 tokenizers==0.21.2
 torch==2.7.1
+torchvision==0.18.1
+torchaudio==2.7.1
 tqdm @ file:///croot/tqdm_1738943501192/work
 transformers==4.53.2
 triton==3.3.1
