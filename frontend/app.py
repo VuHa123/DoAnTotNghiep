@@ -32,7 +32,10 @@ SUMMARY_TRIGGER = 5
 
 def start_chat(goal):
     welcome = f"Bạn đã chọn: {goal}. Hãy bắt đầu chia sẻ nhé!"
-    return gr.update(visible=False), gr.update(visible=True), [], gr.update(value="", interactive=True), "😟 Cảm xúc hiện tại: Căng thẳng", STATE_MAIN, 0, False, welcome
+    greeting = "Chào bạn! Chúc bạn một ngày tốt lành! Tôi có thể giúp gì cho bạn"
+    # Khởi tạo chat_history đúng format tuple cho Gradio
+    chat_history = [("", greeting)]
+    return gr.update(visible=False), gr.update(visible=True), chat_history, gr.update(value="", interactive=True), "😟 Cảm xúc hiện tại: Căng thẳng", STATE_MAIN, 0, False, welcome
 
 def chat_with_bot(user_input, chat_history, chat_goal, turn_count, summary_shown, ui_state):
     turn_count = (turn_count or 0) + 1

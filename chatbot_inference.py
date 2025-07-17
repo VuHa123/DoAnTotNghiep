@@ -16,7 +16,9 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft.peft_model import PeftModel
 import re
 import threading
-
+from transformers import TextIteratorStreamer
+import threading
+import time
 # Load environment variables
 load_dotenv("token.env")
 
@@ -30,6 +32,10 @@ def clean_response(text):
     """
     # Xoá token đặc biệt dạng <|...|> hoặc XML/template marker
     text = re.sub(r'<\|.*?\|>', '', text)
+    # Xoá các token đặc biệt còn sót lại (ví dụ: <|, |>, <s>, </s>, v.v.)
+    text = re.sub(r'<\/?[a-zA-Z0-9_\-]+>', '', text)
+    # Cắt output tại các token không mong muốn hoặc ngôn ngữ lạ xuất hiện (ví dụ: " última ", " dernière ", " último ", "تیپ", ...)
+    text = re.split(r'(última|dernière|último|تیپ|trình duyệt|browser|last post|bài đăng của bạn là:)', text)[0]
     # Xoá ký tự 'X' thường xuất hiện thừa đầu câu
     text = text.replace('X', '')
     # Xoá các chỉ thị bị sinh dư
@@ -43,6 +49,8 @@ def clean_response(text):
     ]
     for pattern in garbage_patterns:
         text = re.sub(pattern, '', text, flags=re.IGNORECASE)
+    # Xoá các ký tự không phải tiếng Việt, tiếng Anh, số, dấu câu cơ bản
+    text = re.sub(r'[^\w\s\.,!?;:()\-–—"“”‘’…áàảãạăắằẳẵặâấầẩẫậéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵđA-ZÁÀẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬÉÈẺẼẸÊẾỀỂỄỆÍÌỈĨỊÓÒỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÚÙỦŨỤƯỨỪỬỮỰÝỲỶỸỴĐ]+', ' ', text)
     return text.strip()
 
 class ChatbotInference:
@@ -117,7 +125,16 @@ class ChatbotInference:
             if self.model is None or self.tokenizer is None:
                 raise RuntimeError("Model chưa được load. Gọi load_model() trước.")
             self.stop_event.clear()
-            formatted_prompt = f"""### Instruction:\nBạn là một chatbot hỗ trợ tâm lý chuyên nghiệp. Hãy trả lời người dùng một cách thân thiện, đồng cảm và hữu ích.\n\n### Input:\n{prompt}\n\n### Response:\n"""
+            # Kiểm tra nếu là lượt chat đầu tiên (không có lịch sử chat)
+            is_first_turn = False
+            if isinstance(prompt, str) and ('\n' not in prompt) and (len(prompt.split()) < 40):
+                is_first_turn = True
+            # Prompt hội thoại tự nhiên
+            formatted_prompt = (
+                f"Bạn là một người bạn tâm lý, hãy trả lời ngắn gọn, thân thiện cho câu hỏi sau:\n"
+                f"{prompt}\n"
+                f"Chỉ trả lời đúng vai trò của một chatbot, không đưa ra ví dụ, không hướng dẫn."
+            )
             inputs = self.tokenizer(
                 formatted_prompt,
                 return_tensors="pt",
@@ -139,12 +156,15 @@ class ChatbotInference:
                     repetition_penalty=1.1
                 )
             response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-            # Chỉ lấy phần sau ### Response:
-            if "### Response:" in response:
-                response = response.split("### Response:")[-1].strip()
-            # Nếu vẫn còn ### Instruction hoặc ### Input do model sinh dư, loại bỏ chúng
-            response = re.split(r"### Instruction:|### Input:", response)[0].strip()
+            # Xử lý lấy phần trả lời thực sự
+            response = re.split(r"### Instruction:|### Input:|### End|### System|### User|###", response)[0]
+            response_lines = response.splitlines()
+            filtered_lines = [line for line in response_lines if not re.match(r"^\s*(instruction|hướng dẫn|system|input|response|user)[:：]", line, re.IGNORECASE)]
+            response = "\n".join(filtered_lines).strip()
             response = clean_response(response)
+            # Nếu là lượt chat đầu tiên, thêm câu chào và chúc
+            if is_first_turn:
+                response = f"Xin chào bạn! Chúc bạn một ngày tốt lành!\n{response}"
             return response
         except Exception as e:
             logger.error(f"❌ Error generating response: {e}")
@@ -162,8 +182,23 @@ class ChatbotInference:
             self.stop_event.clear()
 
             logger.debug("🔧 Bắt đầu format prompt...")
-            formatted_prompt = f"""### Instruction:\nBạn là một chatbot hỗ trợ tâm lý chuyên nghiệp. Hãy trả lời người dùng một cách thân thiện, đồng cảm và hữu ích.\n\n### Input:\n{prompt}\n\n### Response:\n"""
+            formatted_prompt = f"""### Instruction:
+                    Bạn là một chatbot hỗ trợ tâm lý chuyên nghiệp. Hãy tuân theo các quy tắc sau:
 
+                    1. **Phản hồi ngắn gọn, tự nhiên** 
+                    2. **Thân thiện và đồng cảm** - Sử dụng giọng điệu ấm áp, quan tâm
+                    3. **Tập trung vào người dùng** - Đặt câu hỏi để hiểu rõ hơn về tình huống
+                    4. **Không đưa ra lời khuyên ngay lập tức** - Lắng nghe trước khi tư vấn
+
+                    ### Ví dụ phản hồi tốt:
+                    - User: "xin chào" → Bot: "Chào bạn! Tôi có thể giúp gì cho bạn hôm nay?"
+                    - User: "Tôi bị stress" → Bot: "Tôi hiểu cảm giác đó rất khó chịu. Bạn có thể chia sẻ điều gì đang khiến bạn căng thẳng không?"
+
+                    ### Input:
+                    {prompt}
+
+                    ### Response:
+                    """
             # --- TOKENIZE ---
             t0 = time.time()
             inputs = self.tokenizer(
@@ -221,9 +256,7 @@ class ChatbotInference:
         """
         Stream từng token (hoặc đoạn text) khi model sinh ra, dùng TextIteratorStreamer.
         """
-        from transformers import TextIteratorStreamer
-        import threading
-        import time
+ 
         if self.model is None or self.tokenizer is None:
             raise RuntimeError("Model chưa được load. Gọi load_model() trước.")
         self.stop_event.clear()
