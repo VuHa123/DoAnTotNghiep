@@ -135,52 +135,128 @@ elif prefer_model == "gemini":
 
 ```bash
 DoAnTotNghiep/
-├── api_gateway/             # FastAPI backend (gộp từ server.py)
-│   ├── main.py             # Main API server
-│   └── chatbot_api.py      # Chatbot-specific routes
-├── frontend/                # Enhanced Gradio interface
-│   └── app.py              # Main frontend application
-├── services/                # Core services (giữ nguyên)
-│   ├── chatbot/            # Chatbot logic
-│   ├── emergency_handler/   # Emergency handling
-│   ├── gating_router/      # Risk assessment
-│   ├── mental_state_classifier/ # Mental state analysis
-│   ├── setiment_analysis/  # Sentiment analysis
-│   ├── context_tracking/   # Conversation context
-│   └── summarization/      # Text summarization
-├── models/                  # Model definitions
-│   ├── chatbot_model.py    # Chatbot model interface
-│   ├── exllama_chatbot.py  # ExLlama integration
-│   ├── gemini.py           # Gemini integration
-│   ├── llama.py            # Llama integration
-│   └── model_router.py     # Model routing
-├── scripts/                 # Consolidated scripts
-│   ├── training.py         # Comprehensive training script
-│   ├── setup.py            # Setup utilities
+├── api_gateway/               # API Gateway (FastAPI backend)
+│   ├── __init__.py
+│   ├── main.py               # Main API server
+│   └── chatbot_api.py        # Chatbot-specific routes
+├── chatbot_inference.py      # Script inference chatbot
+├── config.py                 # File cấu hình chung
+├── Database/                 # Quản lý database
+│   └── core.py
+├── Dataset/                  # Dữ liệu huấn luyện/thô
+├── docker-compose.yml        # Docker setup tổng
+├── docker-compose.inference.yml # Docker cho inference
+├── Dockerfile                # Docker build chính
+├── Dockerfile.frontend       # Docker build frontend
+├── Dockerfile.inference      # Docker build inference
+├── Dockerfile.pytorch        # Docker build cho PyTorch
+├── Docs/                     # Tài liệu dự án
+│   └── API.md
+├── download_llama_model.py   # Script tải model LLaMA
+├── env.example               # Mẫu file biến môi trường
+├── frontend/                 # Giao diện người dùng (Gradio UI)
+│   ├── __init__.py
+│   ├── app.py                # Ứng dụng frontend chính
+│   └── features_ui.txt       # Mô tả tính năng UI
+├── generate_dataset_chatbot.txt # Hướng dẫn tạo dataset
+├── logs/                     # Log files
+├── model_server.py           # Model inference server
+├── models/                   # Định nghĩa & trọng số model
+│   ├── __init__.py
+│   ├── chatbot_model.py      # Interface chatbot
+│   ├── exllama_chatbot.py    # Tích hợp ExLlama
+│   ├── gemini.py             # Tích hợp Gemini
+│   ├── gpt.py                # Tích hợp GPT
+│   ├── llama.py              # Tích hợp LLaMA
+│   ├── model_router.py       # Định tuyến model
+│   └── weights/              # Trọng số model
+├── Notebook/                 # Notebook Jupyter
+├── OPTIMIZATION_SUMMARY.md   # Tổng kết tối ưu hóa
+├── PROJECT_STATUS.md         # Trạng thái dự án
+├── pyproject.toml            # Cấu hình Python project
+├── quick_test.py             # Script test nhanh
+├── README_DEV.md             # Tài liệu cho dev
+├── README.md                 # Tài liệu chính
+├── Reference/                # Tài liệu tham khảo
+│   └── Section-I-TV-20230531.pdf
+├── requirements.txt          # Danh sách thư viện
+├── run_dev.py                # Chạy dev mode
+├── run_individual_services.py# Chạy từng service riêng lẻ
+├── run_servers.py            # Chạy toàn bộ server
+├── scripts/                  # Script hỗ trợ huấn luyện, inference, cài đặt
+│   ├── __init__py
+│   ├── convert_to_gptq.py
+│   ├── docker_manager.py
+│   ├── download_alternative_model.py
+│   ├── download_base_model.py
+│   ├── exllama_inference.py
+│   ├── finetune_chatbot.py
+│   ├── finetune_qlora.py
 │   ├── install_dependencies.py
-│   └── run_tests.py
-├── tests/                   # All test files
-│   ├── test_api.py         # API tests (pytest)
+│   ├── merge_checkpoint.py
+│   ├── reorganize_models.py
+│   ├── run_exllama_workflow.py
+│   ├── run_inference.py
+│   ├── run_tests.py
+│   ├── setup_exllama.py
+│   ├── training.py
+│   └── update_requirements.py
+├── services/                 # Các service lõi
+│   ├── __init__.py
+│   ├── chatbot/              # Logic chatbot
+│   │   ├── bot_service.py
+│   │   ├── gemini_service.py
+│   │   ├── inference_service.py
+│   │   ├── llama_service.py
+│   │   └── response_generator.py
+│   ├── common_schemas.py
+│   ├── context_tracking/     # Theo dõi ngữ cảnh hội thoại
+│   │   └── tracker.py
+│   ├── emergency_handler/    # Xử lý khẩn cấp
+│   │   ├── __init__.py
+│   │   ├── handler.py
+│   │   ├── hotline_caller.py
+│   │   ├── README.md
+│   │   └── staff_notifier.py
+│   ├── gating_router/        # Định tuyến/phân loại rủi ro
+│   │   ├── __init__.py
+│   │   ├── prompt_builder.py
+│   │   ├── quick_check.py
+│   │   └── router.py
+│   ├── mental_state_classifier/ # Phân loại trạng thái tâm thần
+│   │   ├── classifer.py
+│   │   ├── config/
+│   │   │   ├── labels.json
+│   │   │   ├── settings.py
+│   │   │   └── thresholds.json
+│   │   └── utils/
+│   │       └── text_preprocessor.py
+│   ├── setiment_analysis/    # Phân tích cảm xúc
+│   │   └── analyzer.py
+│   └── summarization/        # Tóm tắt hội thoại
+│       └── summarizer.py
+├── setup_dev.py              # Script setup cho dev
+├── setup.py                  # Cài đặt package
+├── status_dev.py             # Kiểm tra trạng thái dev
+├── stop_dev.py               # Dừng dev server
+├── test_checkpoint_1000.py   # Test checkpoint model
+├── test_gating_router.py     # Test router phân loại
+├── tests/                    # Unit test
+│   ├── __init__.py
+│   ├── test_api_manual.py
+│   ├── test_api.py
 │   ├── test_emergency_handler.py
-│   ├── test_generator.py   # Generator tests
-│   └── test_tokens.py      # Token tests
-├── utils/                   # Utilities
-│   ├── common.py           # Common utilities
-│   ├── api_manager.py      # API management
-│   ├── data_loader.py      # Data loading
-│   ├── logger.py           # Logging utilities
-│   ├── semantic_search.py  # Semantic search
-│   └── token_loader.py     # Token management
-├── Database/                # Database management
-├── Dataset/                 # Data files
-├── Notebook/                # Jupyter notebooks
-├── logs/                    # Log files
-├── config.py                # Configuration
-├── requirements.txt         # Dependencies
-├── docker-compose.yml       # Docker setup
-├── Dockerfile               # Docker configuration
-├── README.md                # Documentation
-└── PROJECT_STATUS.md        # Project status
+│   ├── test_generator.py
+│   ├── test_merged_model.py
+│   └── test_tokens.py
+├── utils/                    # Tiện ích chung
+│   ├── __init__.py
+│   ├── api_manager.py
+│   ├── common.py
+│   ├── data_loader.py
+│   ├── logger.py
+│   ├── semantic_search.py
+│   └── token_loader.py
 ```
 
 ---
