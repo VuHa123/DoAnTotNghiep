@@ -1,3 +1,6 @@
+import os
+import json
+
 def build_prompt(user_message: str, mental_state: str, sentiment_intensity: str) -> str:
     instruction = (
         "Bạn là một chuyên gia tâm lý. Hãy trả lời người dùng với giọng điệu nhẹ nhàng, đồng cảm. "
@@ -11,6 +14,15 @@ def build_prompt(user_message: str, mental_state: str, sentiment_intensity: str)
     )
     return f"{instruction}\n{input_text}"
 
+# Helper to cache label descriptions
+_label_desc_cache = None
+def get_label_descriptions():
+    global _label_desc_cache
+    if _label_desc_cache is None:
+        json_path = os.path.join(os.path.dirname(__file__), "label_descriptions.json")
+        with open(json_path, "r", encoding="utf-8") as f:
+            _label_desc_cache = json.load(f)
+    return _label_desc_cache
 
 def build_prompt_from_object(obj: dict) -> str:
     """
@@ -27,6 +39,7 @@ def build_prompt_from_object(obj: dict) -> str:
         }
     }
     """
+    label_desc = get_label_descriptions()
     DEFAULT_INSTRUCTION = "Bạn là một chatbot hỗ trợ tâm lý. Hãy phản hồi nhẹ nhàng và cảm thông."
     instruction = obj.get("instruction", DEFAULT_INSTRUCTION)
     input_text = obj.get("input", "")
@@ -37,12 +50,22 @@ def build_prompt_from_object(obj: dict) -> str:
     history = context.get("history", [])
 
     prompt_lines = [instruction, ""]
+    # Add label and description if present
     if mental_state:
         prompt_lines.append(f"- Trạng thái tâm lý: {mental_state}")
+        desc = label_desc["mental_state_label"].get(mental_state)
+        if desc:
+            prompt_lines.append(f"  → {desc}")
     if sentiment:
         prompt_lines.append(f"- Cảm xúc: {sentiment}")
+        desc = label_desc["sentiment_intensity_label"].get(str(sentiment))
+        if desc:
+            prompt_lines.append(f"  → {desc}")
     if risk_level:
         prompt_lines.append(f"- Mức độ rủi ro: {risk_level}")
+        desc = label_desc["gating_label"].get(risk_level)
+        if desc:
+            prompt_lines.append(f"  → {desc}")
     if history:
         prompt_lines.append("Lịch sử hội thoại:")
         for turn in history:

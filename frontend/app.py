@@ -3,6 +3,7 @@ import sys
 import re
 sys.path.append("..")
 from chatbot_inference import ChatbotInference
+from services.gating_router.prompt_builder import build_prompt_from_object
 
 # Khởi tạo model fine-tune
 chatbot = ChatbotInference(checkpoint_name="checkpoint-1098")
@@ -39,8 +40,16 @@ def start_chat(goal):
 
 def chat_with_bot(user_input, chat_history, chat_goal, turn_count, summary_shown, ui_state):
     turn_count = (turn_count or 0) + 1
-    response = chatbot.generate_response(user_input)
     chat_history = chat_history or []
+    # Build prompt object with context/history
+    prompt_obj = {
+        "instruction": "Bạn là một chatbot hỗ trợ tâm lý. Hãy phản hồi nhẹ nhàng và cảm thông.",
+        "input": user_input,
+        "context": {
+            "history": chat_history[-5:]  # Lấy 5 lượt gần nhất
+        }
+    }
+    response = chatbot.generate_response(prompt_obj)
     chat_history.append({"role": "user", "content": user_input})
     response_full = response
 
@@ -284,7 +293,7 @@ with gr.Blocks(
     with gr.Row(visible=True) as main_screen:
         with gr.Column():
             gr.Markdown("## 🧠 MENTALBOT\nTrò chuyện tâm lý cùng bạn")
-            gr.Markdown("👋 **Xin chào! Bạn muốn tôi hỗ trợ gì hôm nay?**")
+            gr.Markdown("�� **Xin chào! Bạn muốn tôi hỗ trợ gì hôm nay?**")
             chat_goal = gr.Radio(choices=list(chat_goals), label=None, interactive=True, elem_classes="goal-card")
             start_btn = gr.Button("Bắt đầu", variant="primary", elem_classes="send-button")
         settings_btn = gr.Button("⚙️ Tuỳ chọn", variant="secondary")
