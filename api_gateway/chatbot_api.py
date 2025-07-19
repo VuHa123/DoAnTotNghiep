@@ -49,7 +49,7 @@ class DirectGenerateRequest(BaseModel):
     max_new_tokens: int = 200
     temperature: float = 0.7
     top_p: float = 0.9
-    checkpoint: str = "checkpoint-1000"
+    checkpoint: str = "checkpoint-1098"
 
 class DirectGenerateResponse(BaseModel):
     response: str
