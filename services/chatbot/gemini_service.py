@@ -11,6 +11,7 @@ import google.generativeai as genai
 from typing import Dict, Optional, List
 from utils.api_manager import api_manager
 import re
+from services.gating_router.prompt_builder import build_prompt_from_object
 
 logger = logging.getLogger(__name__)
 
@@ -62,52 +63,28 @@ class GeminiService:
         logger.error("All API keys failed after retries")
         return None
         
-    def build_mental_health_prompt(self, 
-                                  user_message: str, 
-                                  sentiment: str = None,
-                                  mental_state: str = None,
-                                  risk_level: str = None) -> str:
-        """Xây dựng prompt động dựa trên context"""
-        
-        base_prompt = f"""Bạn là một chatbot hỗ trợ tâm lý chuyên nghiệp. 
-Hãy trả lời người dùng một cách thân thiện, đồng cảm và hữu ích.
-
-Người dùng: {user_message}
-
-"""
-        
-        # Thêm context dựa trên sentiment
-        if sentiment == "negative" or sentiment == "3":
-            base_prompt += "Lưu ý: Người dùng có vẻ đang cảm thấy tiêu cực. Hãy trả lời nhẹ nhàng, động viên và gợi ý các phương pháp tự chăm sóc.\n\n"
-            
-        # Thêm context dựa trên mental state
-        if mental_state in ["stress", "anxiety", "depression"]:
-            base_prompt += "Lưu ý: Người dùng có dấu hiệu stress/lo lắng/trầm cảm. Hãy trả lời với sự đồng cảm và gợi ý liên hệ chuyên gia nếu cần.\n\n"
-            
-        # Thêm context dựa trên risk level
-        if risk_level == "emergency":
-            base_prompt += "⚠️ KHẨN CẤP: Người dùng có dấu hiệu nguy hiểm. Hãy trả lời ngắn gọn, động viên và gợi ý liên hệ hotline hỗ trợ khẩn cấp ngay lập tức.\n\n"
-        elif risk_level == "risky":
-            base_prompt += "⚠️ RỦI RO: Người dùng có dấu hiệu rủi ro. Hãy trả lời cẩn thận, động viên và gợi ý tìm kiếm sự hỗ trợ chuyên môn.\n\n"
-            
-        base_prompt += "Trả lời:"
-        
-        return base_prompt
-        
     def get_response(self, 
-                    user_message: str,
-                    sentiment: str = None,
-                    mental_state: str = None, 
-                    risk_level: str = None) -> Dict:
-        """Lấy response từ Gemini với context"""
+                    user_message: str = "",
+                    sentiment: str = "",
+                    mental_state: str = "", 
+                    risk_level: str = "",
+                    prompt_obj: dict = {}) -> Dict:
+        """Lấy response từ Gemini với context. Có thể truyền prompt object mới."""
         try:
-            # Xây dựng prompt động
-            prompt = self.build_mental_health_prompt(
-                user_message, sentiment, mental_state, risk_level
-            )
-            # Gọi API
+            if prompt_obj:
+                prompt = build_prompt_from_object(prompt_obj)
+            else:
+                # Backward compatibility
+                prompt_obj = {
+                    "input": user_message,
+                    "context": {
+                        "mental_state": mental_state,
+                        "sentiment_intensity": sentiment,
+                        "risk_level": risk_level
+                    }
+                }
+                prompt = build_prompt_from_object(prompt_obj)
             response = self.call_gemini_api(prompt)
-            # Làm sạch ký tự đặc biệt nếu có
             def clean_special_tokens(text):
                 return re.sub(r"<\|.*?\|>", "", text)
             if response:

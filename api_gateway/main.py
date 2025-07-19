@@ -20,6 +20,7 @@ from services.emergency_handler.handler import EmergencyHandler
 from services.context_tracking.tracker import update_context
 from api_gateway.chatbot_api import router as chatbot_router
 from services.common_schemas import ChatServiceInput, ChatServiceOutput, SentimentOutput, MentalStateOutput, EmergencyOutput
+from services.gating_router.prompt_builder import build_prompt_from_object
 
 # Cấu hình logging
 logging.basicConfig(level=logging.INFO)
@@ -71,7 +72,8 @@ class EmergencyRequest(BaseModel):
     location: Optional[str] = None
     contact: Optional[str] = None
 
-# Health check endpoint
+# Health check endpoint: Kiểm tra trạng thái API Gateway.
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
@@ -90,7 +92,7 @@ async def health_check():
         logger.error(f"Health check failed: {e}")
         raise HTTPException(status_code=500, detail="Service unavailable")
 
-# Main chat endpoint
+# Main chat endpoint:  Nhận message từ frontend, xử lý toàn bộ luồng (gọi Gating Router, các service, Model Server...).
 @app.post("/chat", response_model=ChatResponse)
 async def handle_chat(req: ChatRequest):
     """
@@ -112,6 +114,15 @@ async def handle_chat(req: ChatRequest):
             mental_state=None,
             risk_level=risk_level
         )
+        # Build prompt object for generate_reply
+        prompt_obj = {
+            "instruction": "Bạn là một chatbot hỗ trợ tâm lý. Hãy phản hồi nhẹ nhàng và cảm thông.",
+            "input": req.user_input,
+            "context": {
+                "history": req.history[-5:] if req.history else [],
+                "risk_level": risk_level
+            }
+        }
         if risk_level == "normal":
             # Low risk: use simple prompt
             reply = generate_reply(req.user_input, req.history, sentiment="", mental_state="")
@@ -146,7 +157,7 @@ async def handle_chat(req: ChatRequest):
         logger.error(f"Error in chat endpoint: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-# Emergency endpoint
+# Emergency endpoint:Xử lý khẩn cấp.
 @app.post("/emergency")
 async def emergency_endpoint(request: EmergencyRequest):
     """Emergency handling endpoint"""
@@ -168,7 +179,7 @@ async def emergency_endpoint(request: EmergencyRequest):
         raise HTTPException(status_code=500, detail=f"Emergency handling failed: {str(e)}")
 
 # Context management endpoints
-@app.get("/context/{user_id}")
+@app.get("/context/{user_id}")#lấy/xóa context hội thoại.
 async def get_context(user_id: str):
     """Get conversation context for a user"""
     try:
