@@ -1,0 +1,22 @@
+{
+  "gating_label": {
+    "normal": "Nội dung bình thường, không biểu hiện cảm xúc tiêu cực rõ rệt. Không cần xử lý đặc biệt.",
+    "risky": "Có dấu hiệu tiêu cực như buồn bã, áp lực hoặc bất ổn tâm lý ở mức vừa. Cần phản hồi cẩn trọng.",
+    "emergency": "Biểu hiện tình trạng nghiêm trọng như tuyệt vọng, hoảng loạn hoặc ý định tự tử. Cần ưu tiên xử lý ngay."
+  },
+  "mental_state_label": {
+    "Normal": "Không có dấu hiệu bất ổn tâm lý rõ rệt.",
+    "Stress": "Căng thẳng do áp lực công việc, học tập, mối quan hệ,...",
+    "Anxiety": "Lo âu kéo dài, cảm giác bất an, dễ hoảng sợ.",
+    "Depression": "Trầm cảm, buồn sâu sắc, mất động lực sống.",
+    "Bipolar": "Cảm xúc dao động bất thường giữa hưng phấn và trầm cảm.",
+    "Personality disorder": "Hành vi và cảm xúc bất ổn lâu dài, ảnh hưởng đến cách ứng xử và quan hệ.",
+    "Suicidal": "Có dấu hiệu muốn tự tử, thể hiện qua ý định hoặc suy nghĩ muốn chấm dứt cuộc sống."
+  },
+  "sentiment_intensity_label": {
+    "0": "Nhẹ: Cảm xúc tiêu cực nhẹ, chỉ là buồn thoáng qua hoặc lo lắng nhẹ.",
+    "1": "Trung bình: Cảm xúc tiêu cực rõ ràng, kéo dài hoặc gây khó chịu.",
+    "2": "Nặng: Cảm xúc tiêu cực mạnh, ảnh hưởng lớn đến suy nghĩ và hành vi.",
+    "3": "Khẩn cấp: Cảm xúc cực đoan, như tuyệt vọng, hoảng loạn, có thể tự gây hại. Cần can thiệp ngay lập tức."
+  }
+} 

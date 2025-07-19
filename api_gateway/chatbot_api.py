@@ -25,10 +25,6 @@ router = APIRouter()
 # Khởi tạo gating router
 gating_model = QuickCheckModel("models/weights/gating_router/best_model")
 
-# Khởi tạo instance inference toàn cục (chỉ load 1 lần)
-chatbot_inference = ChatbotInference()
-model_loaded = chatbot_inference.load_model()
-
 class ChatRequest(BaseModel):
     message: str
     user_id: Optional[str] = None
@@ -49,7 +45,7 @@ class DirectGenerateRequest(BaseModel):
     max_new_tokens: int = 200
     temperature: float = 0.7
     top_p: float = 0.9
-    checkpoint: str = "checkpoint-1098"
+    checkpoint: str = "checkpoint-1000"
 
 class DirectGenerateResponse(BaseModel):
     response: str
@@ -74,12 +70,24 @@ async def chat_endpoint(request: ChatRequest):
         risk_level = max(risk_proba, key=lambda k: risk_proba[k])
         logger.info(f"Risk level: {risk_level}, Proba: {risk_proba}")
         # 4. Chọn model và gọi API
-        chat_input = ChatServiceInput(
-            user_message=user_message,
-            sentiment=sentiment_obj.sentiment,
-            mental_state=mental_state_obj.mental_state,
-            risk_level=risk_level
-        )
+        if risk_level == "normal":
+            # Gọi Model Server luôn, không phân tích sentiment/mental_state
+            chat_input = ChatServiceInput(
+                user_message=user_message,
+                sentiment=None,
+                mental_state=None,
+                risk_level=risk_level
+            )
+        else:
+            # Phân tích sentiment/mental_state trước
+            sentiment_obj = detect_sentiment_label(user_message)
+            mental_state_obj = detect_mental_state(user_message)
+            chat_input = ChatServiceInput(
+                user_message=user_message,
+                sentiment=sentiment_obj.sentiment,
+                mental_state=mental_state_obj.mental_state,
+                risk_level=risk_level
+            )
         response_obj: ChatServiceOutput = await get_response_with_fallback(
             chat_input=chat_input,
             prefer_model=request.prefer_model
@@ -112,58 +120,56 @@ async def get_response_with_fallback(chat_input: ChatServiceInput, prefer_model:
     logger.info(f"LLaMA server health: {llama_health}")
     logger.info(f"Prefer model: {prefer_model}")
     if prefer_model == "llama" and llama_available:
-        llama_result: ChatServiceOutput = llama_service.get_response(chat_input)
-        if llama_result.success:
-            return llama_result
+        llama_result_main = llama_service.get_response(
+            chat_input.user_message,
+            chat_input.sentiment or '',
+            chat_input.mental_state or '',
+            chat_input.risk_level or ''
+        )
+        llama_result_main = ChatServiceOutput(**llama_result_main)
+        if llama_result_main.success:
+            return llama_result_main
         else:
             logger.warning("LLaMA failed, falling back to Gemini")
     elif prefer_model == "gemini":
-        gemini_result: ChatServiceOutput = gemini_service.get_response(chat_input)
-        if gemini_result.success:
-            return gemini_result
+        gemini_result_main = gemini_service.get_response(
+            chat_input.user_message,
+            chat_input.sentiment or '',
+            chat_input.mental_state or '',
+            chat_input.risk_level or ''
+        )
+        gemini_result_main = ChatServiceOutput(**gemini_result_main)
+        if gemini_result_main.success:
+            return gemini_result_main
         else:
             logger.warning("Gemini failed")
             return ChatServiceOutput(success=False, response="Xin lỗi, tôi đang gặp sự cố kỹ thuật.", source="fallback")
     else:  # prefer_model == "auto"
         if llama_available:
-            llama_result: ChatServiceOutput = llama_service.get_response(chat_input)
-            if llama_result.success:
-                return llama_result
+            llama_result_auto = llama_service.get_response(
+                chat_input.user_message,
+                chat_input.sentiment or '',
+                chat_input.mental_state or '',
+                chat_input.risk_level or ''
+            )
+            llama_result_auto = ChatServiceOutput(**llama_result_auto)
+            if llama_result_auto.success:
+                return llama_result_auto
             else:
                 logger.warning("LLaMA failed, falling back to Gemini")
-        gemini_result: ChatServiceOutput = gemini_service.get_response(chat_input)
-        if gemini_result.success:
-            return gemini_result
+        gemini_result_auto = gemini_service.get_response(
+            chat_input.user_message,
+            chat_input.sentiment or '',
+            chat_input.mental_state or '',
+            chat_input.risk_level or ''
+        )
+        gemini_result_auto = ChatServiceOutput(**gemini_result_auto)
+        if gemini_result_auto.success:
+            return gemini_result_auto
         else:
             logger.error("Both LLaMA and Gemini failed")
             return ChatServiceOutput(success=False, response="Xin lỗi, tôi đang gặp sự cố kỹ thuật.", source="fallback")
     return ChatServiceOutput(success=False, response="Xin lỗi, tôi đang gặp sự cố kỹ thuật.", source="fallback")
-
-@router.post("/generate-direct", response_model=DirectGenerateResponse)
-async def generate_direct_endpoint(
-    req: DirectGenerateRequest = Body(...)
-):
-    """
-    Sinh response trực tiếp từ mô hình fine-tuned local (không qua server trung gian)
-    """
-    try:
-        # Nếu checkpoint khác, reload model
-        if req.checkpoint != chatbot_inference.checkpoint_name:
-            chatbot_inference.checkpoint_name = req.checkpoint
-            if not chatbot_inference.load_model():
-                return DirectGenerateResponse(response="", success=False, error="Không load được checkpoint mới")
-        if chatbot_inference.model is None:
-            return DirectGenerateResponse(response="", success=False, error="Model chưa được load")
-        response = chatbot_inference.generate_response(
-            req.prompt,
-            max_new_tokens=req.max_new_tokens,
-            temperature=req.temperature,
-            top_p=req.top_p
-        )
-        return DirectGenerateResponse(response=response, success=True)
-    except Exception as e:
-        logger.error(f"Error in /generate-direct: {e}")
-        return DirectGenerateResponse(response="", success=False, error=str(e))
 
 @router.get("/api-stats")
 async def get_api_stats():

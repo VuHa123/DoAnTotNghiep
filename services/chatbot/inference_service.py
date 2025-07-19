@@ -8,6 +8,7 @@ import logging
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft.peft_model import PeftModel
 from dotenv import load_dotenv
+from services.gating_router.prompt_builder import build_prompt_from_object
 
 # Load environment variables
 load_dotenv("token.env")
@@ -53,7 +54,12 @@ class ChatbotInference:
         try:
             if self.model is None or self.tokenizer is None:
                 raise RuntimeError("Model chưa được load. Gọi load_model() trước.")
-            formatted_prompt = f"""### Instruction:\nBạn là một chatbot hỗ trợ tâm lý chuyên nghiệp. Hãy trả lời người dùng một cách thân thiện, đồng cảm và hữu ích.\n\n### Input:\n{prompt}\n\n### Response:\n"""
+            # Nếu prompt là dict (object), build lại prompt string
+            if isinstance(prompt, dict):
+                prompt_str = build_prompt_from_object(prompt)
+            else:
+                prompt_str = prompt
+            formatted_prompt = f"""### Instruction:\nBạn là một chatbot hỗ trợ tâm lý chuyên nghiệp. Hãy trả lời người dùng một cách thân thiện, đồng cảm và hữu ích.\n\n### Input:\n{prompt_str}\n\n### Response:\n"""
             inputs = self.tokenizer(formatted_prompt, return_tensors="pt", truncation=True, max_length=512, padding=True)
             inputs = {k: v.to(self.device) for k, v in inputs.items()}
             with torch.no_grad():

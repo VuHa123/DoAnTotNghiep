@@ -134,5 +134,16 @@ Notebook/
 *.ipynb
 token.env
 
-__pycache__/
-*.pyc
+# Custom/dev ignores
+Dataset/llama_instruction_data.jsonl
+Notebook/chatbot_dataset.csv
+Notebook/llama_instruction_data.jsonl
+Notebook/llama_instruction_data_.jsonl
+Notebook/mental_state_dataset.csv
+Notebook/pseudo_mental_state.csv
+Notebook/pseudo_mental_state_softlabel.csv
+Notebook/qa_with_clean_labels.csv
+Notebook/setimet_labeled_full.csv
+frontend/features_ui.txt
+services/setiment_analysis/__pycache__/phobert_multitask.cpython-311.pyc
+services/setiment_analysis/__pycache__/phobert_multitask.cpython-313.pyc

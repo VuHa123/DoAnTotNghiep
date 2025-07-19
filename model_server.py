@@ -22,6 +22,7 @@ sys.path.append(str(Path(__file__).parent))
 # Import model components
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft import PeftModel
+from services.gating_router.prompt_builder import build_prompt_from_object
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -115,22 +116,17 @@ def generate_response(prompt: str, max_length: int = 512, temperature: float = 0
     try:
         if tokenizer is None or model is None:
             raise RuntimeError("Model and tokenizer must be loaded before inference. Call load_model() first.")
-        
+        # Nếu prompt là dict (object), build lại prompt string
+        if isinstance(prompt, dict):
+            prompt_str = build_prompt_from_object(prompt)
+        else:
+            prompt_str = prompt
         # Format prompt for mental health chatbot
-        formatted_prompt = f"""### Instruction:
-Bạn là một chatbot hỗ trợ tâm lý chuyên nghiệp. Hãy trả lời người dùng một cách thân thiện, đồng cảm và hữu ích.
-
-### Input:
-{prompt}
-
-### Response:
-"""
-        
+        formatted_prompt = f"""### Instruction:\nBạn là một chatbot hỗ trợ tâm lý chuyên nghiệp. Hãy trả lời người dùng một cách thân thiện, đồng cảm và hữu ích.\n\n### Input:\n{prompt_str}\n\n### Response:\n"""
         # Tokenize
         inputs = tokenizer(formatted_prompt, return_tensors="pt", truncation=True, 
                           max_length=max_length, padding=True)
         inputs = {k: v.to(device) for k, v in inputs.items()}
-        
         # Generate
         with torch.no_grad():
             outputs = model.generate(
@@ -143,19 +139,14 @@ Bạn là một chatbot hỗ trợ tâm lý chuyên nghiệp. Hãy trả lời n
                 eos_token_id=tokenizer.eos_token_id,
                 repetition_penalty=1.1
             )
-        
         # Decode response
         response = tokenizer.decode(outputs[0], skip_special_tokens=True)
-        
         # Extract only the response part
         if "### Response:" in response:
             response = response.split("### Response:")[-1].strip()
-        
         # Làm sạch token đặc biệt
         response = re.sub(r"<\|.*?\|>", "", response)
-        
         return response
-        
     except Exception as e:
         logger.error(f"Error generating response: {e}")
         return "Xin lỗi, tôi đang gặp sự cố kỹ thuật. Vui lòng thử lại sau."
