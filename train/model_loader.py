@@ -5,7 +5,7 @@ from peft import LoraConfig, get_peft_model
 
 def load_model(model_name="meta-llama/Llama-3.2-1B-Instruct"):
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"📌 Sử dụng thiết bị: {device}")
+    print(f"Sử dụng thiết bị: {device}")
 
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_auth_token=True)
     tokenizer.pad_token = tokenizer.eos_token
@@ -21,7 +21,7 @@ def load_model(model_name="meta-llama/Llama-3.2-1B-Instruct"):
     peft_config = LoraConfig(
         r=64,
         lora_alpha=128,
-        target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
+        target_modules=["q_proj","k_proj","v_proj","up_proj","down_proj","o_proj","gate_proj"],
         lora_dropout=0.05,
         bias="none",
         task_type="CAUSAL_LM"
