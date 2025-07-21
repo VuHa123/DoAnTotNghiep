@@ -91,14 +91,13 @@ def setup_trainer(model, tokenizer, train_data, eval_data, repo_id, hf_token, wa
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
     trainer = Trainer(
-        model=model,
-        args=args,
-        train_dataset=train_data,
-        eval_dataset=eval_data,
-        data_collator=data_collator,
-        max_seq_length=2048,
-        packing=False,
-        dataset_num_proc=4,
-        callbacks=[CheckpointPush(repo_id, hf_token, args.save_steps)]
+            model=model,
+            args=args,
+            train_dataset=train_data,
+            eval_dataset=eval_data,
+            data_collator=data_collator,
+            packing=False,
+            dataset_num_proc=4,
+            callbacks=[CheckpointPush(repo_id, hf_token, args.save_steps)]
     )
     return trainer
