@@ -5,7 +5,25 @@ from transformers import TrainingArguments, DataCollatorForLanguageModeling, Tra
 from transformers import Trainer
 from huggingface_hub import upload_folder
 import wandb
+def preprocess_dataset(dataset, tokenizer):
+    def preprocess(batch):
+        prompts = [
+            f"<|system|>\nTrả lời một câu hỏi tâm lý của người dùng.\n<|user|>\n{q}\n<|assistant|>\n{a}"
+            for q, a in zip(batch["question"], batch["answer"])
+        ]
+        tokenized = tokenizer(prompts, truncation=True, max_length=2048, padding="max_length")
+        tokenized["labels"] = tokenized["input_ids"]
+        return tokenized
 
+    tokenized = dataset.map(
+        preprocess,
+        batched=True,
+        batch_size=32,
+        remove_columns=dataset.column_names,
+        desc="🔠 Tokenizing"
+    )
+    tokenized.set_format(type="torch", columns=["input_ids", "attention_mask", "labels"])
+    return tokenized
 
 class CheckpointPush(TrainerCallback):
     def __init__(self, repo_id: str, token: str, save_steps: int):
@@ -25,12 +43,6 @@ class CheckpointPush(TrainerCallback):
             print(f"📤 Pushed checkpoint-{state.global_step} to Hugging Face Hub.")
         return control
 
-def preprocess_dataset(dataset, tokenizer):
-    if tokenizer is None:
-        return dataset
-    def tokenize(sample):
-        return tokenizer(sample["text"], truncation=True, padding="max_length", max_length=1024)
-    return dataset.map(tokenize, batched=True, remove_columns=dataset.column_names)
 
 def setup_trainer(model, tokenizer, train_data, eval_data, repo_id, hf_token, wandb_key=None):
     if wandb_key:
