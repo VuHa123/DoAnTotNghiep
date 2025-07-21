@@ -22,7 +22,7 @@ def parse_args():
     return parser.parse_args()
 
 if __name__ == "__main__":
-    print("🚀 Bắt đầu huấn luyện!")
+    print("Bắt đầu huấn luyện!")
 
     args = parse_args()
 
@@ -56,7 +56,7 @@ if __name__ == "__main__":
 
     # Resume nếu có checkpoint
     if checkpoint:
-        print(f"🔁 Resuming from checkpoint: {checkpoint}")
+        print(f"Resuming from checkpoint: {checkpoint}")
         original_load_rng_state = trainer._load_rng_state
 
         def patched_load_rng_state(checkpoint_dir):
@@ -68,7 +68,7 @@ if __name__ == "__main__":
         trainer._load_rng_state = patched_load_rng_state
         trainer.train(resume_from_checkpoint=checkpoint)
     else:
-        print("🚀 Huấn luyện từ đầu...")
+        print("Huấn luyện từ đầu...")
         trainer.train()
 
     # Push model/tokenizer lên HuggingFace
