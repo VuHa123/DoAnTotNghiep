@@ -11,7 +11,7 @@ def preprocess_dataset(dataset, tokenizer):
             f"<|system|>\nTrả lời một câu hỏi tâm lý của người dùng.\n<|user|>\n{q}\n<|assistant|>\n{a}"
             for q, a in zip(batch["question"], batch["answer"])
         ]
-        tokenized = tokenizer(prompts, truncation=True, max_length=1912, padding="max_length")
+        tokenized = tokenizer(prompts, truncation=True, max_length=1024, padding="max_length")
         tokenized["labels"] = tokenized["input_ids"]
         return tokenized
 
