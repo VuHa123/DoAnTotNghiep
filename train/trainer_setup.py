@@ -82,7 +82,7 @@ def setup_trainer(model, tokenizer, train_data, eval_data, repo_id, hf_token, wa
         logging_steps=logging_steps,
         eval_steps=eval_steps,
         save_strategy="steps",
-        evaluation_strategy="steps",
+        eval_strategy="steps",
         save_steps=save_steps,
         save_total_limit=1,
         optim="adamw_8bit",
