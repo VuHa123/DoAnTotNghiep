@@ -63,6 +63,7 @@ def setup_trainer(model, tokenizer, train_data, eval_data, repo_id, hf_token, wa
         logging_steps=int(800 / batch_size),
         eval_steps=int(1000 / batch_size) if eval_data else None,
         save_strategy="steps",
+        eval_strategy="steps",
         save_steps=int(1600 / batch_size),
         save_total_limit=1,
         optim="adamw_8bit",
