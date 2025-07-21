@@ -86,7 +86,6 @@ def setup_trainer(model, tokenizer, train_data, eval_data, repo_id, hf_token, wa
         data_collator=data_collator,
         max_seq_length=2048,
         packing=False,
-        args=args,
         dataset_num_proc=4,
         callbacks=[CheckpointPush(repo_id, hf_token, args.save_steps)]
     )
