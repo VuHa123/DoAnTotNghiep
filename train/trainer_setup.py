@@ -57,8 +57,8 @@ def setup_trainer(model, tokenizer, train_data, eval_data, repo_id, hf_token, wa
     else:
         report_to = "none"
 
-    per_device_train_batch_size = 16
-    gradient_accumulation_steps = 8
+    per_device_train_batch_size = 12
+    gradient_accumulation_steps = 10
     batch_size = per_device_train_batch_size * gradient_accumulation_steps
     num_epochs = 2
     total_steps = int(len(train_data) * num_epochs / batch_size)
