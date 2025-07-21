@@ -16,7 +16,7 @@ def load_model(model_name="meta-llama/Llama-3.2-1B-Instruct"):
         low_cpu_mem_usage=True,
         device_map="auto",
         use_auth_token=True
-    ).to(device)
+    ).to("cpu")
 
     peft_config = LoraConfig(
         r=64,
