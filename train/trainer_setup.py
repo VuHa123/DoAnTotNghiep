@@ -5,7 +5,7 @@ from transformers import TrainingArguments, DataCollatorForLanguageModeling, Tra
 from transformers import Trainer
 from huggingface_hub import upload_folder
 import wandb
-from unsloth import is_bfloat16_supported
+
 
 class CheckpointPush(TrainerCallback):
     def __init__(self, repo_id: str, token: str, save_steps: int):
@@ -58,8 +58,8 @@ def setup_trainer(model, tokenizer, train_data, eval_data, repo_id, hf_token, wa
         warmup_steps=int(total_steps * 0.03),
         max_steps=total_steps,
         learning_rate=2e-4,
-        fp16=not is_bfloat16_supported(),
-        bf16=is_bfloat16_supported(),
+        fp16=False,
+        bf16=torch.cuda.is_available(),
         logging_steps=int(800 / batch_size),
         eval_steps=int(1000 / batch_size) if eval_data else None,
         save_strategy="steps",
@@ -84,6 +84,10 @@ def setup_trainer(model, tokenizer, train_data, eval_data, repo_id, hf_token, wa
         train_dataset=train_data,
         eval_dataset=eval_data,
         data_collator=data_collator,
+        max_seq_length=2048,
+        packing=False,
+        args=args,
+        dataset_num_proc=4,
         callbacks=[CheckpointPush(repo_id, hf_token, args.save_steps)]
     )
     return trainer
