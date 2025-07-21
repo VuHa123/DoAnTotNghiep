@@ -3,7 +3,7 @@ import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft import LoraConfig, get_peft_model
 
-def load_model(model_name="meta-llama/Llama-3.2-3B-Instruct"):
+def load_model(model_name="meta-llama/Llama-3.2-1B-Instruct"):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"📌 Sử dụng thiết bị: {device}")
 
