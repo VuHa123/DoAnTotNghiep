@@ -11,7 +11,7 @@ def preprocess_dataset(dataset, tokenizer):
             f"<|system|>\nTrả lời một câu hỏi tâm lý của người dùng.\n<|user|>\n{q}\n<|assistant|>\n{a}"
             for q, a in zip(batch["question"], batch["answer"])
         ]
-        tokenized = tokenizer(prompts, truncation=True, max_length=2048, padding="max_length")
+        tokenized = tokenizer(prompts, truncation=True, max_length=1912, padding="max_length")
         tokenized["labels"] = tokenized["input_ids"]
         return tokenized
 
@@ -85,7 +85,7 @@ def setup_trainer(model, tokenizer, train_data, eval_data, repo_id, hf_token, wa
         report_to=report_to,
         save_on_each_node=False,
         logging_dir=None,
-        dataloader_num_workers=2
+        dataloader_num_workers=4
     )
 
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
