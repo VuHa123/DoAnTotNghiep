@@ -85,7 +85,7 @@ def setup_trainer(model, tokenizer, train_data, eval_data, repo_id, hf_token, wa
         report_to=report_to,
         save_on_each_node=False,
         logging_dir=None,
-        dataloader_num_workers=4
+        dataloader_num_workers=2
     )
 
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
