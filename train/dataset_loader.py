@@ -1,28 +1,22 @@
+# dataset_loader.py
+from huggingface_hub import hf_hub_download, list_repo_files
 import pandas as pd
 from datasets import Dataset
 
-def load_dataset(csv_path="mental_health_eng_viet.csv"):
-    df = pd.read_csv(csv_path)
-    df.dropna(subset=["question", "answer"], inplace=True)
+def load_dataset():
+    REPO_ID = "NV9523/mental_health_dataset"
+    REPO_TYPE = "dataset"
+
+    files = list_repo_files(REPO_ID, repo_type=REPO_TYPE)
+    train_files = [f for f in files if f.startswith("train/") and f.endswith(".parquet")]
+
+    dfs = []
+    for file in train_files:
+        print(f"Tải file: {file}")
+        path = hf_hub_download(repo_id=REPO_ID, filename=file, repo_type=REPO_TYPE)
+        df = pd.read_parquet(path)
+        dfs.append(df)
+
+    df = pd.concat(dfs, ignore_index=True)
+    print("Dataset loaded với", len(df), "dòng")
     return Dataset.from_pandas(df)
-
-def preprocess_dataset(dataset, tokenizer):
-    def preprocess(batch):
-        prompts = [
-            f"<|system|>\nTrả lời một câu hỏi tâm lý của người dùng.\n<|user|>\n{q}\n<|assistant|>\n{a}"
-            for q, a in zip(batch["question"], batch["answer"])
-        ]
-        tokenized = tokenizer(prompts, truncation=True, max_length=2048, padding="max_length", return_tensors=None)
-        tokenized["labels"] = tokenized["input_ids"]
-        return tokenized
-
-    tokenized_dataset = dataset.map(
-        preprocess,
-        batched=True,
-        batch_size=32,
-        remove_columns=dataset.column_names,
-        num_proc=1,
-        desc="Tokenizing"
-    )
-    tokenized_dataset.set_format(type="torch", columns=["input_ids", "attention_mask", "labels"])
-    return tokenized_dataset

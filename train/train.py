@@ -1,22 +1,26 @@
+# train.py
+from dataset_loader import load_dataset
 from model_loader import load_model
-from dataset_loader import load_dataset, preprocess_dataset
-from trainer_setup import setup_trainer
+from trainer_setup import preprocess_dataset, setup_trainer
 
 if __name__ == "__main__":
-    # Load model + tokenizer
+    print("🚀 Bắt đầu huấn luyện!")
+
+    # Load dataset
+    dataset = load_dataset()
+    # Split tập train/test nếu muốn (ở đây train 100%)
+    train_data = dataset.train_test_split(test_size=0.1)["train"]
+    eval_data = dataset.train_test_split(test_size=0.1)["test"]
+
+    # Load model và tokenizer
     model, tokenizer = load_model()
 
-    # Load and preprocess dataset
-    dataset = load_dataset("mental_health_eng_viet.csv")
-    tokenized_dataset = preprocess_dataset(dataset, tokenizer)
+    # Tiền xử lý
+    train_data = preprocess_dataset(train_data, tokenizer)
+    eval_data = preprocess_dataset(eval_data, tokenizer)
 
-    # Optional split
-    split = tokenized_dataset.train_test_split(test_size=0.1)
-    train_dataset = split["train"]
-    eval_dataset = split["test"]
+    # Tạo trainer
+    trainer = setup_trainer(model, tokenizer, train_data, eval_data)
 
-    # Setup trainer
-    trainer = setup_trainer(model, tokenizer, train_dataset, eval_dataset)
-
-    # Train
+    # Huấn luyện
     trainer.train()

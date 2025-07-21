@@ -1,9 +1,11 @@
+# model_loader.py
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft import LoraConfig, get_peft_model
 
-def load_model(model_name="meta-llama/Llama-3.2-1B-Instruct"):
+def load_model(model_name="meta-llama/Llama-3.2-3B-Instruct"):
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"📌 Sử dụng thiết bị: {device}")
 
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_auth_token=True)
     tokenizer.pad_token = tokenizer.eos_token
@@ -24,7 +26,6 @@ def load_model(model_name="meta-llama/Llama-3.2-1B-Instruct"):
         bias="none",
         task_type="CAUSAL_LM"
     )
-
     model = get_peft_model(base_model, peft_config).to(device)
     model.print_trainable_parameters()
 
