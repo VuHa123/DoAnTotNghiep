@@ -18,6 +18,6 @@ def load_dataset():
         dfs.append(df)
 
     df = pd.concat(dfs, ignore_index=True)
-    df = df.head(10)
+    # df = df.head(10)
     print("Dataset loaded với", len(df), "dòng")
     return Dataset.from_pandas(df)
