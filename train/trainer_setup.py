@@ -68,13 +68,13 @@ def setup_trainer(model, tokenizer, train_data, eval_data, repo_id, hf_token, wa
     warmup_steps = int(total_steps * 0.03)
     logging_steps = int(800 / batch_size)
     eval_steps = int(1000 / batch_size) if eval_data else None
-    save_steps = 50
+    save_steps = 500
 
     args = TrainingArguments(
         output_dir="MentalGPT_SFT",
         per_device_train_batch_size=per_device_train_batch_size,
         gradient_accumulation_steps=gradient_accumulation_steps,
-        max_steps=total_steps,
+        max_steps=873378,
         warmup_steps=warmup_steps,
         learning_rate=2e-4,
         fp16=False,
