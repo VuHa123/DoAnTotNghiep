@@ -107,3 +107,7 @@ wheel==0.45.1
 xxhash==3.5.0
 yarl==1.20.1
 zstandard @ file:///croot/zstandard_1731356346222/work
+pymongo==4.7.2
+scholarly==1.7.11
+arxiv==2.1.0
+beautifulsoup4==4.12.3
