@@ -59,31 +59,31 @@ def setup_trainer(model, tokenizer, train_data, eval_data, repo_id, hf_token, wa
         report_to = "none"
 
     # === Training config ===
-    per_device_train_batch_size = 2
-    gradient_accumulation_steps = 1
-    batch_size = per_device_train_batch_size * gradient_accumulation_steps
-    num_epochs = 2
+    # per_device_train_batch_size = 2
+    # gradient_accumulation_steps = 1
+    # batch_size = per_device_train_batch_size * gradient_accumulation_steps
+    # num_epochs = 2
 
-    total_steps = int(len(train_data) * num_epochs / batch_size)
-    warmup_steps = int(total_steps * 0.03)
-    logging_steps = int(800 / batch_size)
-    eval_steps = int(1000 / batch_size) if eval_data else None
-    save_steps = 500
+    # total_steps = int(len(train_data) * num_epochs / batch_size)
+    # warmup_steps = int(total_steps * 0.03)
+    # logging_steps = int(800 / batch_size)
+    # eval_steps = int(1000 / batch_size) if eval_data else None
+    # save_steps = 500
 
     args = TrainingArguments(
         output_dir="MentalGPT_SFT",
-        per_device_train_batch_size=per_device_train_batch_size,
-        gradient_accumulation_steps=gradient_accumulation_steps,
+        per_device_train_batch_size=2,
+        gradient_accumulation_steps=1,
         max_steps=873378,
-        warmup_steps=warmup_steps,
+        warmup_steps=500,
         learning_rate=2e-4,
         fp16=False,
         bf16=torch.cuda.is_available(),
-        logging_steps=logging_steps,
-        eval_steps=eval_steps,
+        logging_steps=100,
+        eval_steps=12131 ,
         save_strategy="steps",
         eval_strategy="steps",
-        save_steps=save_steps,
+        save_steps=500,
         save_total_limit=1,
         optim="adamw_8bit",
         weight_decay=0.01,
@@ -102,6 +102,6 @@ def setup_trainer(model, tokenizer, train_data, eval_data, repo_id, hf_token, wa
         train_dataset=train_data,
         eval_dataset=eval_data,
         data_collator=data_collator,
-        callbacks=[CheckpointPush(repo_id, hf_token, save_steps)]
+        callbacks=[CheckpointPush(repo_id, hf_token, args.save_steps)]
     )
     return trainer
