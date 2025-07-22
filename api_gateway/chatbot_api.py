@@ -14,7 +14,7 @@ from services.mental_state_classifier.classifer import detect_mental_state
 from services.gating_router.quick_check import QuickCheckModel
 from services.chatbot.gemini_service import gemini_service
 from services.chatbot.llama_service import llama_service
-from services.chatbot.inference_service import ChatbotInference
+
 from services.common_schemas import ChatServiceInput, ChatServiceOutput, SentimentOutput, MentalStateOutput
 
 logger = logging.getLogger(__name__)
