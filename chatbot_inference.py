@@ -10,15 +10,13 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import torch
 import logging
-import argparse
-from dotenv import load_dotenv
-from transformers import AutoTokenizer, AutoModelForCausalLM
-from peft.peft_model import PeftModel
 import re
 import threading
-from transformers import TextIteratorStreamer
-import threading
+from transformers import TextIteratorStreamer, AutoTokenizer, AutoModelForCausalLM
+from peft.peft_model import PeftModel
+from dotenv import load_dotenv
 import time
+from services.gating_router.prompt_builder import build_prompt_from_object
 # Load environment variables
 load_dotenv("token.env")
 
@@ -135,18 +133,18 @@ class ChatbotInference:
     
     def generate_response(self, prompt, max_new_tokens=200, temperature=0.7, top_p=0.9):
         """
-        Generate response từ prompt, hỗ trợ dừng sinh phản hồi qua self.stop_event
+        Generate response từ prompt dict, chỉ hỗ trợ production API
         """
         try:
             if self.model is None or self.tokenizer is None:
                 raise RuntimeError("Model chưa được load. Gọi load_model() trước.")
             self.stop_event.clear()
-            # Kiểm tra nếu là lượt chat đầu tiên (không có lịch sử chat)
-            is_first_turn = False
-            if isinstance(prompt, str) and ('\n' not in prompt) and (len(prompt.split()) < 40):
-                is_first_turn = True
-            # Prompt hội thoại chuyên nghiệp, rõ ràng
-            formatted_prompt = f"""### Instruction:\nBạn là chatbot hỗ trợ tâm lý chuyên nghiệp. Quy tắc quan trọng:\n- Chỉ trả lời bằng tiếng Việt\n- Không sử dụng HTML, CSS, hoặc code \n- Phản hồi ngắn gọn, tự nhiên (2-3 câu)\n- Thân thiện và đồng cảm\n\n### Input:\n{prompt}\n\n### Response:\n"""
+            
+            # Chỉ hỗ trợ prompt dict cho production API
+            if not isinstance(prompt, dict):
+                raise ValueError("Prompt phải là dict object cho production API")
+            
+            formatted_prompt = build_prompt_from_object(prompt, include_template=True)
             inputs = self.tokenizer(
                 formatted_prompt,
                 return_tensors="pt",
@@ -165,7 +163,7 @@ class ChatbotInference:
                     do_sample=True,
                     pad_token_id=self.tokenizer.eos_token_id,
                     eos_token_id=self.tokenizer.eos_token_id,
-                    repetition_penalty=1.2#giảm lặp lại nội dung
+                    repetition_penalty=1.2
                 )
             response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
             # Tách phần response
@@ -180,9 +178,6 @@ class ChatbotInference:
             sentences = response.split('.')
             if len(sentences) > 5:
                 response = '. '.join(sentences[:5]) + '.'
-            # Nếu là lượt chat đầu tiên, thêm câu chào và chúc
-            if is_first_turn:
-                response = f"{response}"
             return response
         except Exception as e:
             logger.error(f"❌ Error generating response: {e}")
@@ -200,23 +195,11 @@ class ChatbotInference:
             self.stop_event.clear()
 
             logger.debug("🔧 Bắt đầu format prompt...")
-            formatted_prompt = f"""### Instruction:
-                    Bạn là một chatbot hỗ trợ tâm lý chuyên nghiệp. Hãy tuân theo các quy tắc sau:
-
-                    1. **Phản hồi ngắn gọn, tự nhiên** 
-                    2. **Thân thiện và đồng cảm** - Sử dụng giọng điệu ấm áp, quan tâm
-                    3. **Tập trung vào người dùng** - Đặt câu hỏi để hiểu rõ hơn về tình huống
-                    4. **Không đưa ra lời khuyên ngay lập tức** - Lắng nghe trước khi tư vấn
-
-                    ### Ví dụ phản hồi tốt:
-                    - User: "xin chào" → Bot: "Chào bạn! Tôi có thể giúp gì cho bạn hôm nay?"
-                    - User: "Tôi bị stress" → Bot: "Tôi hiểu cảm giác đó rất khó chịu. Bạn có thể chia sẻ điều gì đang khiến bạn căng thẳng không?"
-
-                    ### Input:
-                    {prompt}
-
-                    ### Response:
-                    """
+            # Chỉ hỗ trợ prompt dict cho production API
+            if not isinstance(prompt, dict):
+                raise ValueError("Prompt phải là dict object cho production API")
+            
+            formatted_prompt = build_prompt_from_object(prompt, include_template=True)
             # --- TOKENIZE ---
             t0 = time.time()
             inputs = self.tokenizer(
@@ -279,7 +262,11 @@ class ChatbotInference:
             raise RuntimeError("Model chưa được load. Gọi load_model() trước.")
         self.stop_event.clear()
 
-        formatted_prompt = f"""### Instruction:\nBạn là một chatbot hỗ trợ tâm lý chuyên nghiệp. Hãy trả lời người dùng một cách thân thiện, đồng cảm và hữu ích.\n\n### Input:\n{prompt}\n\n### Response:\n"""
+        # Chỉ hỗ trợ prompt dict cho production API
+        if not isinstance(prompt, dict):
+            raise ValueError("Prompt phải là dict object cho production API")
+        
+        formatted_prompt = build_prompt_from_object(prompt, include_template=True)
 
         # Tokenize
         t0 = time.time()
@@ -326,50 +313,12 @@ class ChatbotInference:
         thread.join()
     
     def test_inference(self):
-        """Test inference với các prompt mẫu"""
-        logger.info("🧪 Testing inference...")
-        
-        test_prompts = [
-            "Tôi cảm thấy rất lo lắng về tương lai",
-            "Tôi không muốn sống nữa",
-            "Tôi cảm thấy cô đơn và buồn bã",
-            "Làm sao để tôi có thể vượt qua khó khăn này?",
-            "Tôi đang gặp khó khăn trong mối quan hệ với bạn bè"
-        ]
-        
-        for i, prompt in enumerate(test_prompts, 1):
-            logger.info(f"\n--- Test {i}: {prompt} ---")
-            response = self.generate_response(prompt)
-            logger.info(f"Response: {response}")
-        
-        logger.info("✅ All tests completed successfully!")
+        """Test inference với các prompt mẫu - REMOVED FOR PRODUCTION"""
+        pass
     
     def interactive_chat(self):
-        """Interactive chat mode"""
-        logger.info("💬 Starting interactive chat...")
-        logger.info("Type 'quit' to exit")
-        logger.info("-" * 50)
-        
-        while True:
-            try:
-                user_input = input("\n👤 You: ").strip()
-                
-                if user_input.lower() in ['quit', 'exit', 'q']:
-                    logger.info("👋 Goodbye!")
-                    break
-                
-                if not user_input:
-                    continue
-                
-                # Generate response
-                response = self.generate_response(user_input)
-                print(f"\n🤖 Bot: {response}")
-                
-            except KeyboardInterrupt:
-                logger.info("\n👋 Goodbye!")
-                break
-            except Exception as e:
-                logger.error(f"❌ Error: {e}")
+        """Interactive chat mode - REMOVED FOR PRODUCTION"""
+        pass
 
 def list_available_checkpoints():
     """Liệt kê các checkpoint có sẵn"""
@@ -388,79 +337,24 @@ def list_available_checkpoints():
             checkpoints.append("final_model")
     
     return checkpoints
+
 def detect_emergency(self, user_input: str) -> str:
-        """
-        Phát hiện nguy cơ khẩn cấp (tự tử, làm hại bản thân...) từ input người dùng
-        Args:
-            user_input (str): Câu nhập từ người dùng
-        Returns:
-            str: 'emergency' nếu có nguy cơ khẩn cấp, 'normal' nếu không
-        """
-        emergency_keywords = [
-            "tự tử", "muốn chết", "kết thúc cuộc đời", "không muốn sống","tự sát", "đau khổ quá",
-            "không thể chịu nổi", "chán sống", "kết liễu", "tôi sẽ chết", "muốn biến mất"
-        ]
-        normalized_input = user_input.lower().strip()
-        for keyword in emergency_keywords:
-            if keyword in normalized_input:
-                logger.warning(f"🚨 Phát hiện nguy cơ khẩn cấp với từ khóa: {keyword}")
-                return "emergency"
-        return "normal"
+    """
+    Phát hiện nguy cơ khẩn cấp (tự tử, làm hại bản thân...) từ input người dùng
+    Args:
+        user_input (str): Câu nhập từ người dùng
+    Returns:
+        str: 'emergency' nếu có nguy cơ khẩn cấp, 'normal' nếu không
+    """
+    emergency_keywords = [
+        "tự tử", "muốn chết", "kết thúc cuộc đời", "không muốn sống","tự sát", "đau khổ quá",
+        "không thể chịu nổi", "chán sống", "kết liễu", "tôi sẽ chết", "muốn biến mất"
+    ]
+    normalized_input = user_input.lower().strip()
+    for keyword in emergency_keywords:
+        if keyword in normalized_input:
+            logger.warning(f"🚨 Phát hiện nguy cơ khẩn cấp với từ khóa: {keyword}")
+            return "emergency"
+    return "normal"
 
-def main():
-    parser = argparse.ArgumentParser(description="Chatbot Inference")
-    parser.add_argument("--checkpoint", type=str, default="checkpoint-1000",
-                       help="Checkpoint name (checkpoint-549, checkpoint-1000, final_model)")
-    parser.add_argument("--test", action="store_true",
-                       help="Run test inference")
-    parser.add_argument("--interactive", action="store_true",
-                       help="Run interactive chat")
-    parser.add_argument("--prompt", type=str,
-                       help="Single prompt for inference")
-    parser.add_argument("--list", action="store_true",
-                       help="List available checkpoints")
-    parser.add_argument("--max_tokens", type=int, default=200,
-                       help="Maximum new tokens to generate")
-    parser.add_argument("--temperature", type=float, default=0.7,
-                       help="Temperature for generation")
-    
-    args = parser.parse_args()
-    
-    # List checkpoints
-    if args.list:
-        checkpoints = list_available_checkpoints()
-        if checkpoints:
-            logger.info("Available checkpoints:")
-            for cp in checkpoints:
-                logger.info(f"  - {cp}")
-        else:
-            logger.warning("No checkpoints found")
-        return
-    
-    # Khởi tạo chatbot
-    chatbot = ChatbotInference(args.checkpoint)
-    
-    # Load model
-    if not chatbot.load_model():
-        logger.error("❌ Failed to load model")
-        return
-    
-    # Chạy theo mode được chọn
-    if args.test:
-        chatbot.test_inference()
-    elif args.interactive:
-        chatbot.interactive_chat()
-    elif args.prompt:
-        response = chatbot.generate_response(
-            args.prompt, 
-            max_new_tokens=args.max_tokens,
-            temperature=args.temperature
-        )
-        logger.info(f"Prompt: {args.prompt}")
-        logger.info(f"Response: {response}")
-    else:
-        # Default: interactive mode
-        chatbot.interactive_chat()
-
-if __name__ == "__main__":
-    main()
+# REMOVED: main() function and argparse - not needed for production API

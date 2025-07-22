@@ -45,7 +45,7 @@ tokenizer = None
 device = None
 
 class InferenceRequest(BaseModel):
-    prompt: str
+    prompt: dict
     max_length: int = 512
     temperature: float = 0.7
     top_p: float = 0.9
@@ -109,20 +109,19 @@ def load_model():
         logger.error(f"Error loading model: {e}")
         raise
 
-def generate_response(prompt: str, max_length: int = 512, temperature: float = 0.7, 
+def generate_response(prompt: dict, max_length: int = 512, temperature: float = 0.7, 
                      top_p: float = 0.9, do_sample: bool = True) -> str:
     """Generate response using the model"""
     
     try:
         if tokenizer is None or model is None:
             raise RuntimeError("Model and tokenizer must be loaded before inference. Call load_model() first.")
-        # Nếu prompt là dict (object), build lại prompt string
-        if isinstance(prompt, dict):
-            prompt_str = build_prompt_from_object(prompt)
-        else:
-            prompt_str = prompt
-        # Format prompt for mental health chatbot
-        formatted_prompt = f"""### Instruction:\nBạn là một chatbot hỗ trợ tâm lý chuyên nghiệp. Hãy trả lời người dùng một cách thân thiện, đồng cảm và hữu ích.\n\n### Input:\n{prompt_str}\n\n### Response:\n"""
+        
+        # Chỉ hỗ trợ prompt dict cho production API
+        if not isinstance(prompt, dict):
+            raise ValueError("Prompt phải là dict object cho production API")
+        
+        formatted_prompt = build_prompt_from_object(prompt, include_template=True)
         # Tokenize
         inputs = tokenizer(formatted_prompt, return_tensors="pt", truncation=True, 
                           max_length=max_length, padding=True)

@@ -20,11 +20,19 @@ def get_label_descriptions():
     global _label_desc_cache
     if _label_desc_cache is None:
         json_path = os.path.join(os.path.dirname(__file__), "label_descriptions.json")
-        with open(json_path, "r", encoding="utf-8") as f:
-            _label_desc_cache = json.load(f)
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
+                _label_desc_cache = json.load(f)
+        except FileNotFoundError:
+            # Fallback if file doesn't exist
+            _label_desc_cache = {
+                "gating_label": {},
+                "mental_state_label": {},
+                "sentiment_intensity_label": {}
+            }
     return _label_desc_cache
 
-def build_prompt_from_object(obj: dict) -> str:
+def build_prompt_from_object(obj: dict, include_template=True) -> str:
     """
     Build a prompt string from a structured object.
     obj: {
@@ -40,7 +48,7 @@ def build_prompt_from_object(obj: dict) -> str:
     }
     """
     label_desc = get_label_descriptions()
-    DEFAULT_INSTRUCTION = "Bạn là một chatbot hỗ trợ tâm lý. Hãy phản hồi nhẹ nhàng và cảm thông."
+    DEFAULT_INSTRUCTION = "Bạn là một trợ lý tâm lý chuyên nghiệp. Hãy lắng nghe, đồng cảm và phản hồi nhẹ nhàng. Tránh phán xét và đưa ra gợi ý hữu ích."
     instruction = obj.get("instruction", DEFAULT_INSTRUCTION)
     input_text = obj.get("input", "")
     context = obj.get("context", {})
@@ -48,29 +56,46 @@ def build_prompt_from_object(obj: dict) -> str:
     sentiment = context.get("sentiment_intensity", "")
     risk_level = context.get("risk_level", "")
     history = context.get("history", [])
+    knowledge = context.get("knowledge", [])
 
-    prompt_lines = [instruction, ""]
-    # Add label and description if present
+    # Build context information
+    context_lines = []
     if mental_state:
-        prompt_lines.append(f"- Trạng thái tâm lý: {mental_state}")
+        context_lines.append(f"- Trạng thái tâm lý: {mental_state}")
         desc = label_desc["mental_state_label"].get(mental_state)
         if desc:
-            prompt_lines.append(f"  → {desc}")
+            context_lines.append(f"  → {desc}")
     if sentiment:
-        prompt_lines.append(f"- Cảm xúc: {sentiment}")
+        context_lines.append(f"- Cảm xúc: {sentiment}")
         desc = label_desc["sentiment_intensity_label"].get(str(sentiment))
         if desc:
-            prompt_lines.append(f"  → {desc}")
+            context_lines.append(f"  → {desc}")
     if risk_level:
-        prompt_lines.append(f"- Mức độ rủi ro: {risk_level}")
+        context_lines.append(f"- Mức độ rủi ro: {risk_level}")
         desc = label_desc["gating_label"].get(risk_level)
         if desc:
-            prompt_lines.append(f"  → {desc}")
+            context_lines.append(f"  → {desc}")
+    if knowledge:
+        context_lines.append("Kiến thức liên quan:")
+        for idx, chunk in enumerate(knowledge, 1):
+            context_lines.append(f"[{idx}] {chunk}")
     if history:
-        prompt_lines.append("Lịch sử hội thoại:")
+        context_lines.append("Lịch sử hội thoại:")
         for turn in history:
-            prompt_lines.append(f"{turn['role']}: {turn['content']}")
-    prompt_lines.append("")
-    prompt_lines.append(f"Người dùng: {input_text}")
-    prompt_lines.append("Trợ lý:")
-    return "\n".join(prompt_lines)
+            context_lines.append(f"{turn['role']}: {turn['content']}")
+    
+    # Build input content
+    input_content = []
+    if context_lines:
+        input_content.extend(context_lines)
+        input_content.append("")
+    input_content.append(f"Người dùng: {input_text}")
+    input_content.append("Trợ lý:")
+    
+    input_text_final = "\n".join(input_content)
+
+    if include_template:
+        return f"""### Instruction:\n{instruction}\n\n### Input:\n{input_text_final}\n\n### Response:\n"""
+    else:
+        # Return without template markers
+        return f"{instruction}\n\n{input_text_final}"

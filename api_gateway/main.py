@@ -21,6 +21,7 @@ from services.context_tracking.tracker import update_context
 from api_gateway.chatbot_api import router as chatbot_router
 from services.common_schemas import ChatServiceInput, ChatServiceOutput, SentimentOutput, MentalStateOutput, EmergencyOutput
 from services.gating_router.prompt_builder import build_prompt_from_object
+from services.semantic_search import SemanticIndexer
 
 # Cấu hình logging
 logging.basicConfig(level=logging.INFO)
@@ -72,6 +73,15 @@ class EmergencyRequest(BaseModel):
     location: Optional[str] = None
     contact: Optional[str] = None
 
+class SemanticSearchRequest(BaseModel):
+    query: str
+    top_k: int = 5
+
+class SemanticSearchResponse(BaseModel):
+    results: list
+
+indexer = SemanticIndexer()
+
 # Health check endpoint: Kiểm tra trạng thái API Gateway.
 
 @app.get("/health")
@@ -96,62 +106,59 @@ async def health_check():
 @app.post("/chat", response_model=ChatResponse)
 async def handle_chat(req: ChatRequest):
     """
-    Enhanced chat handler with comprehensive risk assessment
-    LƯU Ý: Mọi request chat đều PHẢI routing qua Gating Router trước khi xử lý tiếp!
-    Flow:
-      1. Nhận request từ frontend
-      2. Gọi Gating Router để xác định risk_level (bình thường, có vấn đề, khẩn cấp)
-      3. Tùy risk_level, gọi các service phù hợp (LLaMA, Sentiment, Mental, Emergency...)
+    Chat handler: Luôn semantic search, luôn build prompt với context đầy đủ (risk, mental_state, sentiment, knowledge, history), luôn gọi LLM.
+    Nếu risk_level là 'emergency', trả về cả phản hồi LLM và cảnh báo khẩn cấp.
     """
     try:
         logger.info(f"Received chat request: {req.user_input[:50]}...")
-        # BƯỚC QUAN TRỌNG: Routing qua Gating Router để xác định risk_level
+        # 1. Phân tích risk, mental, sentiment
         risk_level, confidence = router.route(req.user_input)
-        # Chuẩn hóa input cho các service
-        chat_input = ChatServiceInput(
-            user_message=req.user_input,
-            sentiment=None,
-            mental_state=None,
-            risk_level=risk_level
-        )
-        # Build prompt object for generate_reply
+        mental_state_obj = detect_mental_state(req.user_input)
+        sentiment_obj = detect_sentiment_label(req.user_input)
+        # 2. Semantic search Qdrant
+        knowledge_chunks = indexer.query(req.user_input, top_k=5)
+        knowledge_texts = [chunk.get("chunk_text", "") for chunk in knowledge_chunks]
+        # 3. Build prompt object cho LLM
         prompt_obj = {
-            "instruction": "Bạn là một chatbot hỗ trợ tâm lý. Hãy phản hồi nhẹ nhàng và cảm thông.",
             "input": req.user_input,
             "context": {
                 "history": req.history[-5:] if req.history else [],
-                "risk_level": risk_level
+                "risk_level": risk_level,
+                "mental_state": getattr(mental_state_obj, 'mental_state', ''),
+                "sentiment_intensity": getattr(sentiment_obj, 'sentiment', ''),
+                "knowledge": knowledge_texts
             }
         }
-        if risk_level == "normal":
-            # Low risk: use simple prompt
-            reply = generate_reply(req.user_input, req.history, sentiment="", mental_state="")
-            update_context(req.history, req.user_input, sentiment="", mental_state="", session_id=req.session_id)
+        # 4. Gọi LLM
+        reply = generate_reply(
+            req.user_input,
+            req.history,
+            sentiment=getattr(sentiment_obj, 'sentiment', ''),
+            mental_state=getattr(mental_state_obj, 'mental_state', ''),
+            knowledge=knowledge_texts
+        )
+        update_context(
+            req.history,
+            req.user_input,
+            sentiment=getattr(sentiment_obj, 'sentiment', ''),
+            mental_state=getattr(mental_state_obj, 'mental_state', ''),
+            session_id=req.session_id
+        )
+        # 5. Nếu khẩn cấp, gọi emergency handler và trả về cảnh báo kèm phản hồi LLM
+        if risk_level == "emergency":
+            emergency_result = emergency_handler.check_emergency(req.session_id or "anonymous", req.user_input)
             return ChatResponse(
-                bot_response=reply,
+                bot_response=f"[CẢNH BÁO KHẨN CẤP]: {emergency_result['message']}\n\n[Phản hồi trợ lý]: {reply}",
                 risk_level=risk_level,
-                confidence=confidence
+                confidence=confidence,
+                emotion_label=getattr(sentiment_obj, 'sentiment', '')
             )
-        elif risk_level == "risky":
-            # Medium risk: deeper analysis
-            mental_state_obj = detect_mental_state(req.user_input)
-            sentiment_obj = detect_sentiment_label(req.user_input)
-            update_context(req.history, req.user_input, sentiment_obj.sentiment, mental_state_obj.mental_state, session_id=req.session_id)
-            reply = generate_reply(req.user_input, req.history, sentiment_obj.sentiment, mental_state_obj.mental_state)
+        else:
             return ChatResponse(
                 bot_response=reply,
                 risk_level=risk_level,
                 confidence=confidence,
-                emotion_label=sentiment_obj.sentiment
-            )
-        else:  # emergency
-            # High risk: emergency handling
-            update_context(req.history, req.user_input, sentiment="emergency", mental_state="emergency", session_id=req.session_id)
-            emergency_result = emergency_handler.check_emergency(req.session_id or "anonymous", req.user_input)
-            return ChatResponse(
-                bot_response=emergency_result.message,
-                risk_level=risk_level,
-                confidence=confidence
+                emotion_label=getattr(sentiment_obj, 'sentiment', '')
             )
     except Exception as e:
         logger.error(f"Error in chat endpoint: {e}")
@@ -177,6 +184,16 @@ async def emergency_endpoint(request: EmergencyRequest):
     except Exception as e:
         logger.error(f"Error in emergency endpoint: {e}")
         raise HTTPException(status_code=500, detail=f"Emergency handling failed: {str(e)}")
+
+# Semantic search endpoint
+@app.post("/semantic_search", response_model=SemanticSearchResponse)
+async def semantic_search(req: SemanticSearchRequest):
+    try:
+        results = indexer.query(req.query, top_k=req.top_k)
+        return SemanticSearchResponse(results=results)
+    except Exception as e:
+        logger.error(f"Error in semantic_search endpoint: {e}")
+        raise HTTPException(status_code=500, detail=f"Semantic search failed: {str(e)}")
 
 # Context management endpoints
 @app.get("/context/{user_id}")#lấy/xóa context hội thoại.

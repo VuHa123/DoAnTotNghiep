@@ -23,7 +23,7 @@ flowchart TD
     ModelGemini["Gemini API<br/>(Fallback)<br/>Dự phòng khi LLaMA lỗi"]
     DB["Database<br/>Lưu lịch sử, log, cảnh báo"]
     Context["Context Tracking<br/>Theo dõi ngữ cảnh hội thoại"]
-    Summarizer["Summarization<br/>Tóm tắt hội thoại"]
+
 
     User --> Frontend
     Frontend --> APIGW
@@ -41,7 +41,6 @@ flowchart TD
     ModelGemini --> APIGW
     APIGW --> DB
     Context --> APIGW
-    Summarizer --> APIGW
     APIGW --> Frontend
     %% Style
     style User fill:#e3f2fd,stroke:#90caf9,stroke-width:2px,color:#222
@@ -55,7 +54,6 @@ flowchart TD
     style ModelGemini fill:#f8bbd0,stroke:#f06292,stroke-width:2px,color:#222
     style DB fill:#d7ccc8,stroke:#a1887f,stroke-width:2px,color:#222
     style Context fill:#d1c4e9,stroke:#9575cd,stroke-width:2px,color:#222
-    style Summarizer fill:#d1c4e9,stroke:#9575cd,stroke-width:2px,color:#222
 ```
 
 ### Chức năng từng module:
@@ -70,7 +68,7 @@ flowchart TD
 - **Gemini API (Fallback)** (*Chatbot dự phòng, dùng khi LLaMA lỗi hoặc cần đa dạng nguồn trả lời*)
 - **Database** (*Lưu lịch sử hội thoại, log, cảnh báo, trạng thái user*)
 - **Context Tracking** (*Theo dõi ngữ cảnh hội thoại, giúp chatbot trả lời mạch lạc*)
-- **Summarization** (*Tóm tắt hội thoại, hỗ trợ tổng hợp thông tin cho user hoặc chuyên gia*)
+
 
 > Sơ đồ trên giúp người mới dễ hình dung toàn bộ luồng xử lý và vai trò từng thành phần trong hệ thống chatbot AI hỗ trợ tâm lý.
 
@@ -233,8 +231,8 @@ DoAnTotNghiep/
 │   │       └── text_preprocessor.py
 │   ├── setiment_analysis/    # Phân tích cảm xúc
 │   │   └── analyzer.py
-│   └── summarization/        # Tóm tắt hội thoại
-│       └── summarizer.py
+
+
 ├── setup_dev.py              # Script setup cho dev
 ├── setup.py                  # Cài đặt package
 ├── status_dev.py             # Kiểm tra trạng thái dev

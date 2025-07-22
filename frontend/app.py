@@ -26,24 +26,20 @@ emotion_icons = {
 
 STATE_MAIN = "main"
 STATE_EMERGENCY = "emergency"
-STATE_SUMMARY = "summary"
 STATE_SETTINGS = "settings"
-
-SUMMARY_TRIGGER = 5
 
 def start_chat(goal):
     welcome = f"Bạn đã chọn: {goal}. Hãy bắt đầu chia sẻ nhé!"
     greeting = "Chào bạn! Chúc bạn một ngày tốt lành! Tôi có thể giúp gì cho bạn"
     # Khởi tạo chat_history đúng format tuple cho Gradio
     chat_history = [("", greeting)]
-    return gr.update(visible=False), gr.update(visible=True), chat_history, gr.update(value="", interactive=True), STATE_MAIN, 0, False, welcome
+    return gr.update(visible=False), gr.update(visible=True), chat_history, gr.update(value="", interactive=True), STATE_MAIN, 0, welcome
 
-def chat_with_bot(user_input, chat_history, chat_goal, turn_count, summary_shown, ui_state):
+def chat_with_bot(user_input, chat_history, chat_goal, turn_count, ui_state):
     turn_count = (turn_count or 0) + 1
     chat_history = chat_history or []
     # Build prompt object with context/history
     prompt_obj = {
-        "instruction": "Bạn là một chatbot hỗ trợ tâm lý. Hãy phản hồi nhẹ nhàng và cảm thông.",
         "input": user_input,
         "context": {
             "history": chat_history[-5:]  # Lấy 5 lượt gần nhất
@@ -78,30 +74,27 @@ def chat_with_bot(user_input, chat_history, chat_goal, turn_count, summary_shown
     icon = emotion_icons.get(current_emotion, "🙂")
     emotion_status = f"{icon} Cảm xúc hiện tại: {current_emotion.capitalize()}"
 
-    if turn_count >= SUMMARY_TRIGGER and not summary_shown and not emergency:
-        ui_state = STATE_SUMMARY
-        summary_shown = True
+
 
     chat_history.append({"role": "assistant", "content": response_full})
 
     return (
         gr.update(value="", interactive=True),  # clear user input
         chat_history, emotion_status, ui_state, turn_count,
-        summary_shown, "", gr.update(visible=banner_visible),
+        "", gr.update(visible=banner_visible),
         gr.update(value="Gửi", interactive=True), False
     )
 
 def continue_after_emergency(chat_history, turn_count):
-    return gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), STATE_MAIN
+    return gr.update(visible=True), gr.update(visible=False), STATE_MAIN
 
 def call_support():
     return "📞 Đang kết nối tổng đài 115..."
 
-def save_summary():
-    return "📝 Tóm tắt đã được lưu!"
+
 
 def end_chat():
-    return gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), gr.update(visible=False), [], gr.update(value="", interactive=True), STATE_MAIN, 0, False, ""
+    return gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), [], gr.update(value="", interactive=True), STATE_MAIN, 0, False, ""
 
 def open_settings():
     return gr.update(visible=True)
@@ -162,10 +155,10 @@ def on_send_click_v2(user_input, chat_history, chatbot_ui, is_generating):
             user_input
         )
 
-def run_generation_v2(user_input, chat_history, chatbot_ui, chat_goal, turn_count, summary_shown, ui_state):
+def run_generation_v2(user_input, chat_history, chatbot_ui, chat_goal, turn_count, ui_state):
     # Sinh response bot, append vào cả chat_history và chatbot_ui
-    new_user_input, updated_history, _, new_ui_state, new_turn_count, new_summary_shown, welcome_text, banner_visible, _, _ = chat_with_bot(
-        user_input, chat_history, chat_goal, turn_count, summary_shown, ui_state
+    new_user_input, updated_history, _, new_ui_state, new_turn_count, _, welcome_text, banner_visible, _, _ = chat_with_bot(
+        user_input, chat_history, chat_goal, turn_count, ui_state
     )
     # Lấy message bot vừa trả lời
     last_bot_msg = None
@@ -182,7 +175,7 @@ def run_generation_v2(user_input, chat_history, chatbot_ui, chat_goal, turn_coun
             chatbot_ui.append(("", last_bot_msg))
     return (
         new_user_input, chatbot_ui, new_ui_state, new_turn_count,
-        new_summary_shown, welcome_text, banner_visible,
+        welcome_text, banner_visible,
         gr.update(value="Gửi", interactive=True), False, updated_history, chatbot_ui
     )
 
@@ -343,13 +336,7 @@ with gr.Blocks(
             call_btn = gr.Button("Gọi hỗ trợ 📞")
         emergency_result = gr.Textbox(label="", interactive=False)
 
-    with gr.Row(visible=False) as summary_screen:
-        gr.Markdown("## 🌅 TÓM TẮT CẢM XÚC")
-        summary_text = gr.Markdown("Hôm nay bạn đã chia sẻ nhiều cảm xúc khó nói...")
-        with gr.Row():
-            save_summary_btn = gr.Button("Lưu tóm tắt 📝")
-            end_btn = gr.Button("Kết thúc buổi chat")
-        save_result = gr.Textbox(label="", interactive=False)
+
 
     with gr.Row(visible=False) as settings_screen:
         gr.Markdown("## ⚙️ TUỲ CHỌN GIAO DIỆN")
@@ -362,14 +349,14 @@ with gr.Blocks(
 
     ui_state = gr.State(STATE_MAIN)
     turn_count = gr.State(0)
-    summary_shown = gr.State(False)
+
     is_generating = gr.State(False)
 
     # Sửa callback để truyền đúng chat_history (list dict) cho logic, chatbot_ui chỉ dùng cho hiển thị
     start_btn.click(
         start_chat,
         inputs=[chat_goal],
-        outputs=[main_screen, chat_screen, chatbot_ui, user_input, ui_state, turn_count, summary_shown, welcome_text]
+        outputs=[main_screen, chat_screen, chatbot_ui, user_input, ui_state, turn_count, welcome_text]
     ).then(
         lambda *args: gr.update(value=[]),  # reset chat_history khi bắt đầu
         inputs=[],
@@ -383,21 +370,20 @@ with gr.Blocks(
         outputs=[user_input, chatbot_ui, send_btn, is_generating, chat_history, chatbot_ui, user_input]
     ).then(
         run_generation_v2,
-        inputs=[user_input, chat_history, chatbot_ui, chat_goal, turn_count, summary_shown, ui_state],
-        outputs=[user_input, chatbot_ui, ui_state, turn_count, summary_shown, welcome_text, banner_warning, send_btn, is_generating, chat_history, chatbot_ui]
+        inputs=[user_input, chat_history, chatbot_ui, chat_goal, turn_count, ui_state],
+        outputs=[user_input, chatbot_ui, ui_state, turn_count, welcome_text, banner_warning, send_btn, is_generating, chat_history, chatbot_ui]
     )
 
     continue_btn.click(
         continue_after_emergency,
         inputs=[chatbot_ui, turn_count],
-        outputs=[chat_screen, emergency_screen, summary_screen, ui_state]
+        outputs=[chat_screen, emergency_screen, ui_state]
     )
 
     call_btn.click(call_support, outputs=emergency_result)
-    save_summary_btn.click(save_summary, outputs=save_result)
     end_btn.click(
         end_chat,
-        outputs=[main_screen, chat_screen, emergency_screen, summary_screen, chatbot_ui, user_input, ui_state, turn_count, summary_shown, welcome_text]
+        outputs=[main_screen, chat_screen, emergency_screen, chatbot_ui, user_input, ui_state, turn_count, welcome_text]
     )
 
     settings_btn.click(open_settings, outputs=settings_screen)
