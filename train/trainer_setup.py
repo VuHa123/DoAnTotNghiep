@@ -100,7 +100,7 @@ def setup_trainer(model, tokenizer, train_data, eval_data, repo_id, hf_token, wa
         model=model,
         args=args,
         train_dataset=train_data,
-        eval_dataset=eval_data,
+        eval_dataset=None,
         data_collator=data_collator,
         callbacks=[CheckpointPush(repo_id, hf_token, args.save_steps)]
     )
