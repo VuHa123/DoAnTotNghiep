@@ -2,7 +2,7 @@
 import torch
 
 def generate_stream(model, tokenizer, device, prompt: str, max_new_tokens: int = 100):
-    input_ids = tokenizer(prompt, return_tensors="pt").input_ids.to(device)
+    input_ids = tokenizer(prompt,truncation=True, max_length=1024, return_tensors="pt").input_ids.to(device)
     model.eval()
 
     output_ids = input_ids.clone()
