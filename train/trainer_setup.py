@@ -82,7 +82,7 @@ def setup_trainer(model, tokenizer, train_data, eval_data, repo_id, hf_token, wa
         logging_steps=100,
         eval_steps=12131 ,
         save_strategy="steps",
-        eval_strategy="steps",
+        eval_strategy="no",
         save_steps=500,
         save_total_limit=1,
         optim="adamw_8bit",
@@ -100,7 +100,7 @@ def setup_trainer(model, tokenizer, train_data, eval_data, repo_id, hf_token, wa
         model=model,
         args=args,
         train_dataset=train_data,
-        eval_dataset=eval_data,
+        eval_dataset=None,
         data_collator=data_collator,
         callbacks=[CheckpointPush(repo_id, hf_token, args.save_steps)]
     )
