@@ -16,5 +16,4 @@ class PromptRequest(BaseModel):
 
 @app.post("/model/generate/")
 async def generate_text(req: PromptRequest):
-    generator = generate_stream(model, tokenizer, device, req.prompt, req.max_new_tokens)
-    return StreamingResponse((word for word in generator), media_type="text/plain")
+    return StreamingResponse(generate_stream(model, tokenizer, device, req.prompt, req.max_new_tokens), media_type="text/plain")
