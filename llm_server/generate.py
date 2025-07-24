@@ -1,21 +1,40 @@
-# generate.py
 import torch
+import threading
+from transformers import TextIteratorStreamer
 
 def generate_stream(model, tokenizer, device, prompt: str, max_new_tokens: int = 100):
-    input_ids = tokenizer(prompt,truncation=True, max_length=1024, return_tensors="pt").input_ids.to(device)
+    input_ids = tokenizer(
+        prompt,
+        return_tensors="pt",
+        truncation=True,
+        max_length=1024
+    ).input_ids.to(device)
+
     model.eval()
 
-    output_ids = input_ids.clone()
+    streamer = TextIteratorStreamer(
+        tokenizer,
+        skip_prompt=True,
+        skip_special_tokens=True
+    )
 
-    for _ in range(max_new_tokens):
-        with torch.no_grad():
-            outputs = model(input_ids=output_ids)
-            next_token_logits = outputs.logits[:, -1, :]
-            next_token_id = torch.argmax(next_token_logits, dim=-1).unsqueeze(0)
-            output_ids = torch.cat([output_ids, next_token_id], dim=-1)
+    generation_kwargs = dict(
+        input_ids=input_ids,
+        max_new_tokens=max_new_tokens,
+        do_sample=True,
+        temperature=0.1,
+        top_k=50,
+        top_p=0.95,
+        repetition_penalty=1.0,
+        eos_token_id=tokenizer.eos_token_id,
+        pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id,
+        streamer=streamer
+    )
 
-        next_token = tokenizer.decode(next_token_id.squeeze(), skip_special_tokens=True)
-        yield next_token
+    # Run generation in a background thread
+    thread = threading.Thread(target=model.generate, kwargs=generation_kwargs)
+    thread.start()
 
-        if next_token.strip() in tokenizer.eos_token or next_token.strip().endswith("<|end|>"):
-            break
+    # Yield new text as it is streamed
+    for new_text in streamer:
+        yield new_text
