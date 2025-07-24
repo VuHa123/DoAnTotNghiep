@@ -2,7 +2,6 @@ import os
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from services.common_schemas import SentimentOutput
-from services.chatbot.bot_service import generate_reply
 
 # Đường dẫn model
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
