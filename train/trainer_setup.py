@@ -40,7 +40,7 @@ class CheckpointPush(TrainerCallback):
                 token=self.token,
                 path_in_repo=f"checkpoint-{state.global_step}"
             )
-            print(f"📤 Pushed checkpoint-{state.global_step} to Hugging Face Hub.")
+            print(f"Pushed checkpoint-{state.global_step} to Hugging Face Hub.")
         return control
 
 
