@@ -40,7 +40,8 @@ class ChatResponse(BaseModel):
 @router.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
     """
-    Main chatbot endpoint - tối ưu: chỉ phân tích sentiment/mental_state khi risk_level khác 'normal'
+    Main chatbot endpoint - tất cả các trường hợp đều build prompt đầy đủ context và gửi Model Server.
+    Nếu risk_level == 'emergency', sinh cảnh báo (warning) và vẫn trả về phản hồi từ Model Server.
     """
     try:
         user_message = request.message
@@ -48,43 +49,37 @@ async def chat_endpoint(request: ChatRequest):
         risk_proba = gating_model.predict_proba(user_message)
         risk_level = max(risk_proba, key=lambda k: risk_proba[k])
         logger.info(f"Risk level: {risk_level}, Proba: {risk_proba}")
-        # 2. Xử lý theo risk_level
-        if risk_level == "normal":
-            prompt = user_message
-            response_text = call_gemini_llm(prompt)
-            sentiment = ""
-            mental_state = ""
-        else:
-            sentiment_obj: SentimentOutput = detect_sentiment_label(user_message)
-            logger.info(f"Sentiment: {sentiment_obj}")
-            mental_state_obj: MentalStateOutput = detect_mental_state(user_message)
-            logger.info(f"Mental state: {mental_state_obj}")
-            prompt_obj = {
-                "input": user_message,
-                "context": {
-                    "history": request.history[-5:] if request.history else [],
-                    "risk_level": risk_level,
-                    "mental_state": getattr(mental_state_obj, 'mental_state', ''),
-                    "sentiment_intensity": getattr(sentiment_obj, 'sentiment', ''),
-                    "knowledge": []
-                }
+        # 2. Phân tích sentiment, mental_state
+        sentiment_obj: SentimentOutput = detect_sentiment_label(user_message)
+        logger.info(f"Sentiment: {sentiment_obj}")
+        mental_state_obj: MentalStateOutput = detect_mental_state(user_message)
+        logger.info(f"Mental state: {mental_state_obj}")
+        # 3. Build prompt từ context (luôn luôn build đủ context)
+        prompt_obj = {
+            "input": user_message,
+            "context": {
+                "history": request.history[-5:] if request.history else [],
+                "risk_level": risk_level,
+                "mental_state": getattr(mental_state_obj, 'mental_state', ''),
+                "sentiment_intensity": getattr(sentiment_obj, 'sentiment', ''),
+                "knowledge": []  # Nếu có RAG thì truyền vào đây
             }
-            prompt = build_prompt_from_object(prompt_obj)
-            response_text = call_gemini_llm(prompt)
-            sentiment = sentiment_obj.sentiment
-            mental_state = mental_state_obj.mental_state
-        # 3. Xử lý warning nếu cần
+        }
+        prompt = build_prompt_from_object(prompt_obj)
+        # 4. Gọi model server custom
+        response_text = call_gemini_llm(prompt)
+        # 5. Xử lý warning nếu cần
         warning = None
         if risk_level == "emergency":
             warning = "⚠️ KHẨN CẤP: Nếu bạn cần hỗ trợ khẩn cấp, hãy liên hệ hotline 1900xxxx ngay lập tức!"
         elif risk_level == "risky":
             warning = "⚠️ RỦI RO: Bạn có thể cân nhắc liên hệ chuyên gia tâm lý để được hỗ trợ tốt hơn."
-        elif sentiment and mental_state and (sentiment in ["3", "negative"] and mental_state != "normal"):
+        elif sentiment_obj.sentiment in ["3", "negative"] and mental_state_obj.mental_state != "normal":
             warning = "💡 Gợi ý: Hãy thử các hoạt động thư giãn như thiền, tập thể dục, hoặc nói chuyện với người thân."
         return ChatResponse(
             response=response_text,
-            sentiment=sentiment,
-            mental_state=mental_state,
+            sentiment=sentiment_obj.sentiment,
+            mental_state=mental_state_obj.mental_state,
             risk_level=risk_level,
             warning=warning
         )
