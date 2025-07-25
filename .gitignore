@@ -147,3 +147,4 @@ Notebook/setimet_labeled_full.csv
 frontend/features_ui.txt
 services/setiment_analysis/__pycache__/phobert_multitask.cpython-311.pyc
 services/setiment_analysis/__pycache__/phobert_multitask.cpython-313.pyc
+*.pyc
