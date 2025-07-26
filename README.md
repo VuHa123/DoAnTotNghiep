@@ -119,117 +119,83 @@ Hệ thống sử dụng **Model Inference Server** riêng biệt để serve fi
 - **Port**: 8000
 - **Chức năng**: Main API với fallback logic
 - **Endpoints**:
-  - `POST /api/v1/chat` - Main chat endpoint
+  - `POST /chat` - Main chat endpoint (được gọi từ Web UI)
   - `GET /health` - Health check
   - `GET /api-stats` - API statistics
 
-#### 3. Fallback Logic
-```python
-# Auto mode (default)
-if llama_available:
-    try_llama()
-    if llama_failed:
-        fallback_to_gemini()
-else:
-    use_gemini()
+#### 3. API Request/Response Format
 
-# Manual mode
-if prefer_model == "llama":
-    use_llama()
-elif prefer_model == "gemini":
-    use_gemini()
+**Request từ Web UI:**
+```json
+{
+  "user_input": "Tôi cảm thấy căng thẳng...",
+  "history": [
+    {"role": "user", "content": "..."},
+    {"role": "assistant", "content": "..."}
+  ],
+  "session_id": "session_1234567890"
+}
 ```
+
+**Response từ API Gateway:**
+```json
+{
+  "bot_response": "Tôi hiểu cảm xúc của bạn...",
+  "risk_level": "normal|risky|emergency",
+  "sentiment": "positive|negative|neutral",
+  "mental_state": "depression|anxiety|normal"
+}
+```
+
+#### 4. Risk Level Handling
+- **Normal**: Hiển thị phản hồi bình thường
+- **Risky**: Hiển thị ⚠️ RỦI RO + phản hồi
+- **Emergency**: Hiển thị 🚨 KHẨN CẤP + phản hồi + cảnh báo
 
 ---
 
 ## 📦 Cấu trúc thư mục đã tối ưu hóa
 
+> **🎯 Repository đã được tối ưu hóa:** Loại bỏ 12 files không cần thiết, dọn dẹp cache, và cập nhật .gitignore để bỏ qua các file lớn (Dataset/, Notebook/, models/weights/).
+
 ```bash
 DoAnTotNghiep/
-├── api_gateway/               # API Gateway (FastAPI backend)
+├── 📁 api_gateway/           # API Gateway (FastAPI backend)
 │   ├── __init__.py
-│   ├── main.py               # Main API server
-│   └── chatbot_api.py        # Chatbot-specific routes
-├── chatbot_inference.py      # Script inference chatbot
-├── config.py                 # File cấu hình chung
-├── Database/                 # Quản lý database
+│   ├── api.py               # Main API server
+│   └── chatbot_api.py       # Chatbot-specific routes
+├── 📁 Database/             # Quản lý database
 │   └── core.py
-├── Dataset/                  # Dữ liệu huấn luyện/thô
-├── docker-compose.yml        # Docker setup tổng
-├── docker-compose.inference.yml # Docker cho inference
-├── Dockerfile                # Docker build chính
-├── Dockerfile.frontend       # Docker build frontend
-├── Dockerfile.inference      # Docker build inference
-├── Dockerfile.pytorch        # Docker build cho PyTorch
-├── Docs/                     # Tài liệu dự án
+├── 📁 Dataset/              # Dữ liệu huấn luyện/thô (git-ignored)
+├── 📁 Docs/                 # Tài liệu dự án
 │   └── API.md
-├── download_llama_model.py   # Script tải model LLaMA
-├── env.example               # Mẫu file biến môi trường
-├── frontend/                 # Giao diện người dùng (Gradio UI)
+├── 📁 llmserver/            # LLM Server (Model inference)
+├── 📁 logs/                 # Log files
+├── 📁 models/               # Định nghĩa & trọng số model
 │   ├── __init__.py
-│   ├── app.py                # Ứng dụng frontend chính
-│   └── features_ui.txt       # Mô tả tính năng UI
-├── generate_dataset_chatbot.txt # Hướng dẫn tạo dataset
-├── logs/                     # Log files
-├── model_server.py           # Model inference server
-├── models/                   # Định nghĩa & trọng số model
-│   ├── __init__.py
-│   ├── chatbot_model.py      # Interface chatbot
-│   ├── exllama_chatbot.py    # Tích hợp ExLlama
-│   ├── gemini.py             # Tích hợp Gemini
-│   ├── gpt.py                # Tích hợp GPT
-│   ├── llama.py              # Tích hợp LLaMA
-│   ├── model_router.py       # Định tuyến model
-│   └── weights/              # Trọng số model
-├── Notebook/                 # Notebook Jupyter
-├── OPTIMIZATION_SUMMARY.md   # Tổng kết tối ưu hóa
-├── PROJECT_STATUS.md         # Trạng thái dự án
-├── pyproject.toml            # Cấu hình Python project
-├── quick_test.py             # Script test nhanh
-├── README_DEV.md             # Tài liệu cho dev
-├── README.md                 # Tài liệu chính
-├── Reference/                # Tài liệu tham khảo
+│   └── weights/             # Trọng số model (git-ignored)
+├── 📁 Notebook/             # Notebook Jupyter (git-ignored)
+├── 📁 Reference/            # Tài liệu tham khảo
 │   └── Section-I-TV-20230531.pdf
-├── requirements.txt          # Danh sách thư viện
-├── run_dev.py                # Chạy dev mode
-├── run_individual_services.py# Chạy từng service riêng lẻ
-├── run_servers.py            # Chạy toàn bộ server
-├── scripts/                  # Script hỗ trợ huấn luyện, inference, cài đặt
-│   ├── __init__py
-│   ├── convert_to_gptq.py
-│   ├── docker_manager.py
+├── 📁 scripts/              # Script hỗ trợ huấn luyện, inference, cài đặt
 │   ├── download_alternative_model.py
 │   ├── download_base_model.py
-│   ├── exllama_inference.py
-│   ├── finetune_chatbot.py
-│   ├── finetune_qlora.py
+│   ├── embed_articles_to_qdrant.py
 │   ├── install_dependencies.py
-│   ├── merge_checkpoint.py
-│   ├── reorganize_models.py
-│   ├── run_exllama_workflow.py
-│   ├── run_inference.py
-│   ├── run_tests.py
-│   ├── setup_exllama.py
-│   ├── training.py
-│   └── update_requirements.py
-├── services/                 # Các service lõi
+│   └── reorganize_models.py
+├── 📁 services/             # Các service lõi
 │   ├── __init__.py
-│   ├── chatbot/              # Logic chatbot
-│   │   ├── bot_service.py
-│   │   ├── gemini_service.py
-│   │   ├── inference_service.py
-│   │   ├── llama_service.py
-│   │   └── response_generator.py
+│   ├── chatbot/             # Logic chatbot
 │   ├── common_schemas.py
-│   ├── context_tracking/     # Theo dõi ngữ cảnh hội thoại
+│   ├── context_tracking/    # Theo dõi ngữ cảnh hội thoại
 │   │   └── tracker.py
-│   ├── emergency_handler/    # Xử lý khẩn cấp
+│   ├── emergency_handler/   # Xử lý khẩn cấp
 │   │   ├── __init__.py
 │   │   ├── handler.py
 │   │   ├── hotline_caller.py
 │   │   ├── README.md
 │   │   └── staff_notifier.py
-│   ├── gating_router/        # Định tuyến/phân loại rủi ro
+│   ├── gating_router/       # Định tuyến/phân loại rủi ro
 │   │   ├── __init__.py
 │   │   ├── prompt_builder.py
 │   │   ├── quick_check.py
@@ -242,32 +208,33 @@ DoAnTotNghiep/
 │   │   │   └── thresholds.json
 │   │   └── utils/
 │   │       └── text_preprocessor.py
-│   ├── setiment_analysis/    # Phân tích cảm xúc
-│   │   └── analyzer.py
-
-
-├── setup_dev.py              # Script setup cho dev
-├── setup.py                  # Cài đặt package
-├── status_dev.py             # Kiểm tra trạng thái dev
-├── stop_dev.py               # Dừng dev server
-├── test_checkpoint_1000.py   # Test checkpoint model
-├── test_gating_router.py     # Test router phân loại
-├── tests/                    # Unit test
-│   ├── __init__.py
-│   ├── test_api_manual.py
-│   ├── test_api.py
-│   ├── test_emergency_handler.py
-│   ├── test_generator.py
-│   ├── test_merged_model.py
-│   └── test_tokens.py
-├── utils/                    # Tiện ích chung
+│   ├── semantic_search.py   # Tìm kiếm ngữ nghĩa (RAG)
+│   └── setiment_analysis/   # Phân tích cảm xúc
+│       └── analyzer.py
+├── 📁 train/                # Huấn luyện model
+├── 📁 UI/                   # Giao diện người dùng
+│   ├── main.py
+│   └── templates/
+│       └── index.html       # Template UI
+├── 📁 utils/                # Tiện ích chung
 │   ├── __init__.py
 │   ├── api_manager.py
 │   ├── common.py
 │   ├── data_loader.py
 │   ├── logger.py
-│   ├── semantic_search.py
 │   └── token_loader.py
+├── 📄 index.html            # Giao diện người dùng chính (Web UI)
+├── 📄 chatbot.db            # Database SQLite
+├── 📄 config.py             # File cấu hình chung
+├── 📄 docker-compose.data.yml # Docker cho database (Qdrant + MongoDB)
+├── 📄 download_llama_model.py # Script tải model LLaMA
+├── 📄 env.example           # Mẫu file biến môi trường
+├── 📄 generate_dataset_chatbot.txt # Hướng dẫn tạo dataset
+├── 📄 init_database.py      # Khởi tạo database
+├── 📄 pyproject.toml        # Cấu hình Python project
+├── 📄 requirements.txt      # Danh sách thư viện
+├── 📄 run_servers.py        # Chạy toàn bộ server
+└── 📄 token.env             # File token môi trường (git-ignored)
 ```
 
 ---
@@ -291,109 +258,54 @@ DEBUG=true
 
 ### 3. Chạy hệ thống
 
-#### Development Mode
+#### Cách 1: Chạy với Uvicorn (Development)
 ```bash
-# Chạy cả API Gateway và Model Server
-python run_servers.py
+# Chạy API Gateway
+uvicorn api_gateway.api:app --host 0.0.0.0 --port 8000 --reload
+
+# Chạy Model Server (nếu cần)
+uvicorn llmserver.main:app --host 0.0.0.0 --port 8001 --reload
 ```
 
-#### Production Mode
+#### Cách 2: Chạy Database với Docker (Tùy chọn)
 ```bash
-# Chạy với Docker
-docker-compose up -d
+# Chạy Qdrant và MongoDB database (nếu cần)
+docker-compose -f docker-compose.data.yml up -d
 ```
 
-### 4. Test API
+### 4. Truy cập và test hệ thống
 
-#### Health Check
+#### Web UI
 ```bash
-# API Gateway
+# Mở trình duyệt và truy cập
+http://localhost:8000
+# hoặc mở file index.html trực tiếp
+```
+
+#### Test API Endpoints
+```bash
+# Health check
 curl http://localhost:8000/health
 
-# Model Server  
-curl http://localhost:8001/health
-```
-
-#### Chat với LLaMA
-```bash
-curl -X POST http://localhost:8000/api/v1/chat \
+# Chat endpoint
+curl -X POST http://localhost:8000/chat \
   -H "Content-Type: application/json" \
-  -d '{"message": "Tôi cảm thấy buồn", "prefer_model": "llama"}'
+  -d '{
+    "user_input": "Tôi cảm thấy căng thẳng về công việc",
+    "history": [],
+    "session_id": "test_session_123"
+  }'
 ```
 
-#### Chat với Gemini
-```bash
-curl -X POST http://localhost:8000/api/v1/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Tôi cảm thấy buồn", "prefer_model": "gemini"}'
+#### Response mẫu
+```json
+{
+  "bot_response": "Tôi hiểu bạn đang cảm thấy căng thẳng...",
+  "risk_level": "normal",
+  "sentiment": "negative",
+  "mental_state": "anxiety"
+}
 ```
-
-#### Auto mode (thử LLaMA trước, fallback Gemini)
-```bash
-curl -X POST http://localhost:8000/api/v1/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Tôi cảm thấy buồn", "prefer_model": "auto"}'
-```
-
----
-
-## 🚀 ExLlama GPTQ Inference Setup
-
-### 1. Setup Environment
-```bash
-# Cài đặt ExLlama và dependencies
-python scripts/setup_exllama.py
-```
-
-### 2. Convert Fine-tuned Model to GPTQ
-Sau khi fine-tune xong, convert model từ LoRA adapter sang GPTQ format:
-
-```bash
-python scripts/convert_to_gptq.py \
-    --base_model "meta-llama/Llama-3.2-1B-Instruct" \
-    --lora_path "models/weights/chatbot_finetuned_nf4" \
-    --output_path "models/weights/chatbot_gptq" \
-    --bits 4 \
-    --group_size 128
-```
-
-### 3. Run Inference
-
-#### Test Generation
-```bash
-python scripts/exllama_inference.py \
-    --model_path "models/weights/chatbot_gptq" \
-    --test
-```
-
-#### Interactive Chat
-```bash
-python scripts/exllama_inference.py \
-    --model_path "models/weights/chatbot_gptq" \
-    --interactive
-```
-
-#### Tích hợp vào hệ thống hiện tại
-```python
-from models.exllama_chatbot import create_exllama_chatbot
-
-# Tạo chatbot instance
-chatbot = create_exllama_chatbot("models/weights/chatbot_gptq")
-
-# Sử dụng
-response, emotion = chatbot.chat_response("Tôi cảm thấy căng thẳng")
-print(f"Response: {response}")
-print(f"Emotion: {emotion}")
-```
-
-### Performance Comparison
-
-| Method | Memory Usage | Speed | Quality |
-|--------|-------------|-------|---------|
-| Original (FP16) | ~6GB | 1x | Baseline |
-| LoRA (4-bit) | ~2GB | 0.8x | Good |
-| GPTQ (4-bit) | ~1.5GB | 1.2x | Good |
-| ExLlama GPTQ | ~1.2GB | 1.5x | Good |
 
 ---
 
@@ -401,94 +313,22 @@ print(f"Emotion: {emotion}")
 
 ```json
 {
-  "response": "Tôi hiểu cảm xúc của bạn...",
-  "sentiment": "negative",
-  "mental_state": "depression", 
-  "risk_level": "risky",
-  "source": "llama_model_server",
-  "warning": "⚠️ RỦI RO: Bạn có thể cân nhắc...",
-  "model_used": "llama"
+  "bot_response": "Tôi hiểu cảm xúc của bạn...",
+  "risk_level": "normal|risky|emergency",
+  "sentiment": "positive|negative|neutral",
+  "mental_state": "depression|anxiety|normal",
+  "session_id": "session_1234567890",
+  "timestamp": "2024-01-01T12:00:00Z"
 }
 ```
 
----
-
-## 🛠️ Development
-
-### 1. Fine-tune Model
-```bash
-# Fix và chạy training
-python fix_and_train.py
-```
-
-### 2. Test Model Server
-```bash
-# Chạy riêng Model Server
-python model_server.py
-
-# Test generation
-curl -X POST http://localhost:8001/generate \
-  -H "Content-Type: application/json" \
-  -d '{"prompt": "Tôi cảm thấy buồn"}'
-```
-
-### 3. Test API Gateway
-```bash
-# Chạy riêng API Gateway
-uvicorn api_gateway.main:app --host 0.0.0.0 --port 8000 --reload
-```
+### Risk Level Display:
+- **Normal**: Phản hồi bình thường
+- **Risky**: ⚠️ RỦI RO + phản hồi
+- **Emergency**: 🚨 KHẨN CẤP + phản hồi + cảnh báo
 
 ---
 
-## 🚨 Troubleshooting
 
-### Model Server không start
-```bash
-# Kiểm tra GPU
-nvidia-smi
 
-# Kiểm tra model path
-ls models/weights/chatbot_finetuned/
 
-# Check logs
-tail -f logs/model_server.log
-```
-
-### API Gateway lỗi
-```bash
-# Kiểm tra Model Server
-curl http://localhost:8001/health
-
-# Check logs
-tail -f logs/api_gateway.log
-```
-
-### CUDA Out of Memory (ExLlama)
-```bash
-# Giảm max_seq_len và max_input_len
-python scripts/exllama_inference.py \
-    --model_path "models/weights/chatbot_gptq" \
-    --max_seq_len 1024 \
-    --max_input_len 256
-```
-
----
-
-## 📝 Tùy chỉnh & mở rộng
-- **Thay đổi templates hội thoại:** Sửa trong `_create_conversation_templates()`
-- **Điều chỉnh số lượt hội thoại:** Sửa trong `_generate_multi_turn_conversation()`
-- **Thêm expert mới:** Thêm mô-đun vào `services/` và cập nhật logic routing.
-
----
-
-## 📚 Tham khảo & đóng góp
-- Nếu bạn muốn đóng góp, hãy tạo pull request hoặc issue mới.
-- Đọc thêm tài liệu chi tiết trong thư mục `Docs/`.
-- Xem `services/emergency_handler/README.md` cho thông tin về Emergency Handler.
-- Xem `IMPROVED_GENERATOR_README.md` cho thông tin về Data Generation.
-
----
-
-**Liên hệ hỗ trợ:**
-- Email: your.email@example.com
-- Hotline khẩn cấp: 0984.104.115

@@ -71,6 +71,11 @@ htmlcov/
 *.hdf5
 *.parquet
 
+# Large datasets and notebooks
+Dataset/
+Notebook/
+*.ipynb
+
 # Model files
 *.bin
 *.safetensors
