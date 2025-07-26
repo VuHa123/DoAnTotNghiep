@@ -65,7 +65,14 @@ async def chat_endpoint(request: ChatRequest):
                 "knowledge": []  # Nếu có RAG thì truyền vào đây
             }
         }
-        prompt = build_prompt_from_object(prompt_obj)
+        try:
+            # Thử build prompt với Gemini trước
+            prompt = build_prompt_from_object(prompt_obj)
+        except Exception as e:
+            logger.warning(f"Prompt builder failed, using fallback: {e}")
+            # Fallback: build prompt đơn giản
+            prompt = f"User: {user_message}\nAssistant:"
+        
         # 4. Gọi model server custom
         response_text = call_gemini_llm(prompt)
         # 5. Xử lý warning nếu cần
@@ -91,13 +98,15 @@ async def chat_endpoint(request: ChatRequest):
 async def get_api_stats():
     """Lấy thống kê API usage"""
     try:
-        gemini_stats = gemini_service.get_api_stats()
-        llama_health = llama_service.check_server_health()
-        
         return {
             "success": True,
-            "gemini_stats": gemini_stats,
-            "llama_health": llama_health
+            "message": "API Gateway is running",
+            "services": {
+                "gating_router": "active",
+                "sentiment_analysis": "active", 
+                "mental_state_classifier": "active",
+                "response_generator": "active"
+            }
         }
     except Exception as e:
         logger.error(f"Error getting API stats: {e}")
@@ -107,18 +116,15 @@ async def get_api_stats():
 async def health_check():
     """Health check endpoint"""
     try:
-        llama_health = llama_service.check_server_health()
         return {
             "status": "healthy",
             "services": {
                 "sentiment_analysis": "active",
                 "mental_state_classifier": "active", 
                 "gating_router": "active",
-                    "gemini_api": "active",
-                    "llama_model_server": llama_health["status"]
-                },
-                "llama_server": llama_health
+                "gemini_api": "active"
             }
+        }
     except Exception as e:
         logger.error(f"Health check failed: {e}")
         return {

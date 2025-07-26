@@ -4,119 +4,85 @@ import logging
 import time
 import re
 import unicodedata
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 # Thiết lập logging
-logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 CUSTOM_LLM_API_URL = "https://lists-cos-irc-dow.trycloudflare.com/model/generate/"
 
+# Tạo session với connection pooling và retry
+session = requests.Session()
+retry_strategy = Retry(
+    total=2,
+    backoff_factor=0.5,
+    status_forcelist=[429, 500, 502, 503, 504],
+)
+adapter = HTTPAdapter(max_retries=retry_strategy)
+session.mount("http://", adapter)
+session.mount("https://", adapter)
+
+# Cache compiled patterns để tăng tốc độ
+import re
+SPECIAL_TOKEN_PATTERN = re.compile(r"<\|[^|]*?\|>", flags=re.DOTALL | re.MULTILINE)
+HTML_TAG_PATTERN = re.compile(r"<[^<>]*?/?>\s*", flags=re.DOTALL | re.MULTILINE)
+INVISIBLE_CHARS_PATTERN = re.compile(r"[\u200b\u200c\u200d\u200e\u200f\ufeff\ufffe\uffff\u00a0\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\u0000-\u001f\u007f-\u009f]")
+WHITESPACE_PATTERN = re.compile(r'\s+')
+NEWLINE_PATTERN = re.compile(r'\n\s*\n')
+
 def clean_response(text: str) -> str:
     """
     Làm sạch phản hồi từ mô hình sinh, loại bỏ token đặc biệt và ký tự không mong muốn.
+    Tối ưu hóa với compiled patterns để tăng tốc độ.
     """
     if not isinstance(text, str):
         return ""
     
-    # 1. Loại bỏ MỌI token dạng <|...|> (bao gồm cả multiline) - ưu tiên xử lý trước
-    text = re.sub(r"<\|[^|]*?\|>", "", text, flags=re.DOTALL | re.MULTILINE)
+    # 1. Loại bỏ MỌI token dạng <|...|> (sử dụng compiled pattern)
+    text = SPECIAL_TOKEN_PATTERN.sub("", text)
     
-    # 2. Loại bỏ token đặc biệt với các pattern cụ thể
-    special_tokens = [
-        r"<\|closuresnippet\|>",   # closure snippet token
-        r"<\|fim\|>",              # fim token (thêm vào)
-        r"<\|fim_system\|>",       # fim system token
-        r"<\|fim_user\|>",         # fim user token  
-        r"<\|fim_assistant\|>",    # fim assistant token
-        r"<\|fim_[^|]*?\|>",       # các fim tokens khác
-        r"<\|end[^|]*?\|>",        # end tokens
-        r"<\|start[^|]*?\|>",      # start tokens
-        r"<\|eot_id\|>",           # end of turn token
-        r"<\|begin_of_text\|>",    # begin text token
-        r"<\|end_of_text\|>",      # end text token
-        r"</?s>",                  # sentence tokens
-        r"<unk>",                  # unknown tokens
-        r"<pad>",                  # padding tokens
-        r"<mask>",                 # mask tokens
-    ]
+    # 2. Loại bỏ MỌI token dạng <...> (sử dụng compiled pattern)
+    text = HTML_TAG_PATTERN.sub("", text)
     
-    for pattern in special_tokens:
-        text = re.sub(pattern, "", text, flags=re.IGNORECASE | re.DOTALL)
+    # 3. Loại bỏ các ký tự Unicode vô hình (sử dụng compiled pattern)
+    text = INVISIBLE_CHARS_PATTERN.sub("", text)
     
-    # 3. Loại bỏ MỌI token dạng <...> (bất kể nội dung, bao gồm self-closing tags)
-    text = re.sub(r"<[^<>]*?/?>\s*", "", text, flags=re.DOTALL | re.MULTILINE)
-    
-    # 4. Loại các từ đặc biệt bị sót lại (mở rộng danh sách)
+    # 4. Loại các từ đặc biệt bị sót lại (gộp pattern)
     blacklist_words = [
         "closuresnippet", "startoftext", "endoftext", "endofprompt", 
         "startofresponse", "assistant", "user", "system", "human",
         "cách thức trả lời", "cho phép", "Yes/No", "fim_system",
         "fim_prefix", "fim_middle", "fim_suffix", "eot_id", "start_header_id",
-        "end_header_id", "begin", "end", "instruction", "User", "Assistant",  # role sinh nhầm
-        "fim", "fim_user", "fim_middle", "fim_end",  # Fill-in-Middle tokens
-        "startofprompt", "endofprompt",
-        "startoftext", "endoftext",
-        "canchan", "response"  # Sửa lỗi syntax
+        "end_header_id", "begin", "end", "instruction", "User", "Assistant",
+        "fim", "fim_user", "fim_middle", "fim_end", "startofprompt", "endofprompt",
+        "canchan", "response"
     ]
     
     # Tạo pattern với word boundaries và case insensitive
-    pattern = r"(?<!\w)(" + "|".join(re.escape(w) for w in blacklist_words) + r")(?!\w)"
+    pattern = r"\b(" + "|".join(re.escape(w) for w in blacklist_words) + r")\b"
     text = re.sub(pattern, "", text, flags=re.IGNORECASE)
-
     
-    # 5. Loại bỏ các ký tự Unicode vô hình và điều khiển
-    invisible_chars = [
-        r"[\u200b\u200c\u200d\u200e\u200f]",  # Zero-width chars
-        r"[\ufeff\ufffe\uffff]",              # BOM chars
-        r"[\u00a0\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]",  # Various spaces
-        r"[\u0000-\u001f\u007f-\u009f]",      # Control characters
-    ]
-    
-    for char_pattern in invisible_chars:
-        text = re.sub(char_pattern, "", text)
-    
-    # 6. Xử lý đặc biệt cho token ở cuối text (thường gặp nhất)
-    # Loại bỏ token cuối câu/đoạn trước khi xử lý dòng
-    text = re.sub(r"\s*<\|[^|]*?\|>\s*$", "", text, flags=re.MULTILINE | re.DOTALL)
-    text = re.sub(r"\s*<[^<>]*?>\s*$", "", text, flags=re.MULTILINE | re.DOTALL)
-    
-    # Xử lý token ở giữa text
-    text = re.sub(r"\s*<\|[^|]*?\|>\s*", " ", text, flags=re.DOTALL)
-    text = re.sub(r"\s*<[^<>]*?>\s*", " ", text, flags=re.DOTALL)
-    
-    # 7. Loại bỏ các ký tự lạ còn sót lại (non-printable characters)
+    # 5. Loại bỏ các ký tự lạ còn sót lại (non-printable characters)
     text = ''.join(char for char in text if unicodedata.category(char)[0] != 'C' or char in '\n\t\r ')
     
-    # 8. Chuẩn hóa khoảng trắng
-    text = re.sub(r'\s+', ' ', text)  # Nhiều space thành 1 space
-    text = re.sub(r'\n\s*\n', '\n', text)  # Nhiều newline thành 1 newline
+    # 6. Chuẩn hóa khoảng trắng (sử dụng compiled patterns)
+    text = WHITESPACE_PATTERN.sub(' ', text)
+    text = NEWLINE_PATTERN.sub('\n', text)
     
-    # 9. Xóa dòng trống dư thừa và trim
+    # 7. Xóa dòng trống dư thừa và trim
     lines = []
     for line in text.splitlines():
         line = line.strip()
-        # Chỉ giữ lại dòng có nội dung có nghĩa
         if line and not re.match(r'^[\s\W]*$', line):
             lines.append(line)
     
-    # 10. Aggressive final cleanup - loại bỏ TOÀN BỘ token còn sót lại
     result = "\n".join(lines).strip()
     
-    # Multiple passes để đảm bảo loại bỏ hết token
-    for _ in range(3):  # Lặp nhiều lần để bắt token lồng nhau
-        # Loại bỏ token với pipe
-        result = re.sub(r'<\|[^|]*?\|>', '', result, flags=re.DOTALL)
-        # Loại bỏ token HTML-style  
-        result = re.sub(r'<[^<>]*?>', '', result, flags=re.DOTALL)
-        # Loại bỏ token ở đầu/cuối với whitespace
-        result = re.sub(r'^\s*<[^>]*>\s*', '', result, flags=re.MULTILINE)
-        result = re.sub(r'\s*<[^>]*>\s*$', '', result, flags=re.MULTILINE)
-    
-    # Xử lý đặc biệt cho fim token ở cuối
-    result = re.sub(r'\s*<\|fim\|>\s*$', '', result, flags=re.MULTILINE | re.DOTALL)
-    result = re.sub(r'\s*<\|fim_user\|>\s*$', '', result, flags=re.MULTILINE | re.DOTALL)
-    result = re.sub(r'\s*<\|fim_system\|>\s*$', '', result, flags=re.MULTILINE | re.DOTALL)
-    result = re.sub(r'\s*<\|fim_assistant\|>\s*$', '', result, flags=re.MULTILINE | re.DOTALL)
+    # 8. Final cleanup - loại bỏ bất kỳ token nào còn sót lại
+    result = SPECIAL_TOKEN_PATTERN.sub('', result)
+    result = HTML_TAG_PATTERN.sub('', result)
     
     return result
 
@@ -152,31 +118,61 @@ def validate_cleaned_text(text: str) -> bool:
 def call_gemini_llm(prompt: str) -> str:
     headers = {"Content-Type": "application/json"}
     payload = {"prompt": prompt}
-    
+    logger.info(f"[LLM PROMPT] {prompt}")
     start_time = time.time()
     try:
-        # Timeout 30 giây cho API call
-        res = requests.post(CUSTOM_LLM_API_URL, headers=headers, json=payload, timeout=30)
+        # Giảm timeout xuống 15 giây để tăng tốc độ
+        logger.info(f"🌐 Gọi API: {CUSTOM_LLM_API_URL}")
+        
+        res = session.post(CUSTOM_LLM_API_URL, headers=headers, json=payload, timeout=15)
         duration = time.time() - start_time
         
+        logger.info(f"📥 Response status: {res.status_code} - Thời gian: {duration:.2f}s")
+        
         if res.status_code == 200:
-            result = res.json()
-            if "response" in result:
-                response_text = result["response"]
-                logger.info(f"LLM response: {response_text}")
+            # Kiểm tra content-type để xử lý đúng format
+            content_type = res.headers.get('content-type', '').lower()
+            
+            if 'application/json' in content_type:
+                # Xử lý JSON response
+                try:
+                    result = res.json()
+                    logger.info(f"🔍 Parsed JSON response: {result}")
+                    
+                    if "response" in result:
+                        response_text = result["response"]
+                        logger.info(f"LLM response: {response_text}")
+                        # Làm sạch token đặc biệt nếu có
+                        response_text = clean_response(response_text)
+                        
+                        # Kiểm tra chất lượng sau khi clean
+                        if not validate_cleaned_text(response_text):
+                            logger.warning("⚠️ Response vẫn còn ký tự lạ sau khi clean")
+                            # Có thể clean thêm lần nữa hoặc xử lý khác
+                        
+                        logger.info(f"✅ Custom LLM API thành công - Thời gian: {duration:.2f}s - Độ dài prompt: {len(prompt)} chars")
+                        return response_text
+                    else:
+                        logger.error(f"❌ Custom LLM API trả về response không đúng format: {result}")
+                        return "[Lỗi: Response không đúng format]"
+                except ValueError as json_error:
+                    logger.error(f"❌ Custom LLM API lỗi parse JSON: {json_error}")
+                    logger.error(f"❌ Response text: {res.text}")
+                    return f"[Lỗi: Không thể parse JSON response - {json_error}]"
+            else:
+                # Xử lý text response (như trường hợp hiện tại)
+                response_text = res.text.strip()
+                logger.info(f"📝 Text response: {response_text}")
+                
                 # Làm sạch token đặc biệt nếu có
                 response_text = clean_response(response_text)
                 
                 # Kiểm tra chất lượng sau khi clean
                 if not validate_cleaned_text(response_text):
                     logger.warning("⚠️ Response vẫn còn ký tự lạ sau khi clean")
-                    # Có thể clean thêm lần nữa hoặc xử lý khác
                 
-                logger.info(f"✅ Custom LLM API thành công - Thời gian: {duration:.2f}s - Độ dài prompt: {len(prompt)} chars")
+                logger.info(f"✅ Custom LLM API thành công (text) - Thời gian: {duration:.2f}s - Độ dài prompt: {len(prompt)} chars")
                 return response_text
-            else:
-                logger.error(f"❌ Custom LLM API trả về response không đúng format: {result}")
-                return "[Lỗi: Response không đúng format]"
         else:
             logger.error(f"❌ Custom LLM API lỗi HTTP {res.status_code}: {res.text}")
             return f"[Lỗi HTTP {res.status_code}: {res.text}]"

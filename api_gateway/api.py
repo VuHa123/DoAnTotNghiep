@@ -8,6 +8,7 @@ from typing import List, Optional
 import uvicorn
 import logging
 import time
+import json
 
 # Add parent directory to path for imports
 sys.path.append(str(Path(__file__).parent.parent))
@@ -24,7 +25,10 @@ from services.gating_router.prompt_builder import build_prompt_from_object
 from services.semantic_search import SemanticIndexer
 
 # Cấu hình logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Mental Health Chatbot API", version="1.0.0")
@@ -59,7 +63,7 @@ router = MessageRouter(model_path="models/weights/gating_router")
 class ChatRequest(BaseModel):
     user_input: str
     history: list[str]
-    session_id: str = None
+    session_id: Optional[str] = None
 
 class ChatResponse(BaseModel):
     bot_response: str
@@ -107,63 +111,94 @@ async def health_check():
 @app.post("/chat", response_model=ChatResponse)
 async def handle_chat(req: ChatRequest):
     """
-    Chat handler: Luôn semantic search, luôn build prompt với context đầy đủ (risk, mental_state, sentiment, knowledge, history), luôn gọi LLM.
-    Nếu risk_level là 'emergency', trả về cả phản hồi LLM và cảnh báo khẩn cấp.
+    Chat handler: Kết hợp logic tối ưu:
+    - normal: chỉ semantic search, build prompt, LLM
+    - risky: semantic search + sentiment + mental state, build prompt, LLM
+    - emergency: gọi cảnh báo, semantic search, build prompt, LLM
     """
     try:
-        logger.info(f"Received chat request: {req.user_input[:50]}...")
-        # 1. Phân tích risk, mental, sentiment
-        risk_level, confidence = router.route(req.user_input)
-        mental_state_obj = detect_mental_state(req.user_input)
-        sentiment_obj = detect_sentiment_label(req.user_input)
-        # 2. Semantic search Qdrant
-        knowledge_chunks = indexer.query(req.user_input, top_k=5)
-        print(f"[DEBUG] Raw knowledge_chunks: {knowledge_chunks}")
+        user_message = req.user_input
+        # 1. Gating router - đánh giá rủi ro
+        risk_level, confidence = router.route(user_message)
+        sentiment_obj = None
+        mental_state_obj = None
+        warning = None
+        # 2. Semantic search Qdrant - giảm top_k để tăng tốc độ
+        knowledge_chunks = indexer.query(user_message, top_k=3)
         knowledge_texts = [chunk.get("chunk_text", "") for chunk in knowledge_chunks]
-        # Log knowledge ra terminal
-        print("[RAG/Knowledge] Các đoạn semantic search tìm được:")
-        for idx, chunk in enumerate(knowledge_texts, 1):
-            print(f"  [{idx}] {chunk}")
+        logger.info(f"[chat] 📚 Tìm được {len(knowledge_texts)} đoạn knowledge")
         # 3. Build prompt object cho LLM
-        prompt_obj = {
-            "input": req.user_input,
-            "context": {
-                "history": req.history[-5:] if req.history else [],
-                "risk_level": risk_level,
-                "mental_state": getattr(mental_state_obj, 'mental_state', ''),
-                "sentiment_intensity": getattr(sentiment_obj, 'sentiment', ''),
-                "knowledge": knowledge_texts
+        if risk_level == "normal":
+            prompt_obj = {
+                "input": user_message,
+                "context": {
+                    "history": req.history[-1:] if req.history else [],
+                    "risk_level": risk_level,
+                    "knowledge": knowledge_texts[:1]
+                }
             }
-        }
-        # 4. Gọi LLM
-        import json
-        prompt_str = json.dumps(prompt_obj, ensure_ascii=False)
-        reply = call_gemini_llm(prompt_str)
-        update_context(
-            req.history,
-            req.user_input,
-            sentiment=getattr(sentiment_obj, 'sentiment', ''),
-            mental_state=getattr(mental_state_obj, 'mental_state', ''),
-            session_id=req.session_id
-        )
-        # 5. Nếu khẩn cấp, gọi emergency handler và trả về cảnh báo kèm phản hồi LLM
-        if risk_level == "emergency":
-            emergency_result = EmergencyHandler().check_emergency(req.session_id or "anonymous", req.user_input)
-            return ChatResponse(
-                bot_response=f"[CẢNH BÁO KHẨN CẤP]: {emergency_result['message']}\n\n[Phản hồi trợ lý]: {reply}",
-                risk_level=risk_level,
-                confidence=confidence,
-                emotion_label=getattr(sentiment_obj, 'sentiment', ''),
-                knowledge=knowledge_texts  # Trả về knowledge
-            )
+        elif risk_level == "risky":
+            sentiment_obj = detect_sentiment_label(user_message)
+            mental_state_obj = detect_mental_state(user_message)
+            prompt_obj = {
+                "input": user_message,
+                "context": {
+                    "history": req.history[-2:] if req.history else [],
+                    "risk_level": risk_level,
+                    "mental_state": getattr(mental_state_obj, 'mental_state', ''),
+                    "sentiment_intensity": getattr(sentiment_obj, 'sentiment', ''),
+                    "knowledge": knowledge_texts
+                }
+            }
+        elif risk_level == "emergency":
+            warning = EmergencyHandler().handle_emergency(
+                user_id=req.session_id or "anonymous",
+                location=None,
+                contact=None
+            ).get("message", "")
+            prompt_obj = {
+                "input": user_message,
+                "context": {
+                    "history": req.history[-2:] if req.history else [],
+                    "risk_level": risk_level,
+                    "mental_state": getattr(mental_state_obj, 'mental_state', ''),
+                    "sentiment_intensity": getattr(sentiment_obj, 'sentiment', ''),
+                    "knowledge": knowledge_texts,
+                    "warning": warning
+                }
+            }
         else:
-            return ChatResponse(
-                bot_response=reply,
-                risk_level=risk_level,
-                confidence=confidence,
-                emotion_label=getattr(sentiment_obj, 'sentiment', ''),
-                knowledge=knowledge_texts  # Trả về knowledge
-            )
+            prompt_obj = {
+                "input": user_message,
+                "context": {
+                    "history": req.history[-1:] if req.history else [],
+                    "risk_level": risk_level,
+                    "knowledge": knowledge_texts[:1]
+                }
+            }
+        # 4. Build prompt từ context (luôn luôn build đủ context)
+        try:
+            prompt = build_prompt_from_object(prompt_obj)
+        except Exception as e:
+            logger.warning(f"Prompt builder failed, using fallback: {e}")
+            prompt = json.dumps(prompt_obj, ensure_ascii=False)
+        # 5. Gọi model server custom
+        reply = call_gemini_llm(prompt)
+        # 6. Xử lý warning nếu cần (ngoài emergency)
+        if not warning:
+            if risk_level == "risky":
+                warning = "⚠️ RỦI RO: Bạn có thể cân nhắc liên hệ chuyên gia tâm lý để được hỗ trợ tốt hơn."
+            elif sentiment_obj and (getattr(sentiment_obj, 'sentiment', None) in ["3", "negative"]) and (mental_state_obj and getattr(mental_state_obj, 'mental_state', None) != "normal"):
+                warning = "💡 Gợi ý: Hãy thử các hoạt động thư giãn như thiền, tập thể dục, hoặc nói chuyện với người thân."
+        return ChatResponse(
+            bot_response=reply,
+            risk_level=risk_level,
+            confidence=confidence,
+            emotion_label=getattr(sentiment_obj, 'sentiment', '') if sentiment_obj else '',
+            mental_state=getattr(mental_state_obj, 'mental_state', '') if mental_state_obj else '',
+            suggestion=warning or '',
+            knowledge=knowledge_texts
+        )
     except Exception as e:
         logger.error(f"Error in chat endpoint: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
@@ -174,7 +209,7 @@ async def emergency_endpoint(request: EmergencyRequest):
     """Emergency handling endpoint"""
     try:
         logger.info(f"Emergency request from user: {request.user_id}")
-        result: EmergencyOutput = EmergencyHandler().handle_emergency(
+        result = EmergencyHandler().handle_emergency(
             user_id=request.user_id,
             location=request.location,
             contact=request.contact

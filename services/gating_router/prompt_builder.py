@@ -1,5 +1,9 @@
 import os
 import json
+import requests
+from utils.api_manager import api_manager
+
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent"
 
 def build_prompt(user_message: str, mental_state: str, sentiment_intensity: str) -> str:
     instruction = (
@@ -31,6 +35,50 @@ def get_label_descriptions():
                 "sentiment_intensity_label": {}
             }
     return _label_desc_cache
+
+def call_gemini_build_prompt(obj: dict) -> str:
+    """
+    Gửi thông tin sang Gemini để tạo prompt tối ưu cho LLM.
+    Thêm chỉ dẫn rõ ràng yêu cầu Gemini tổng hợp prompt ngắn gọn, súc tích, tập trung ý chính.
+    """
+    api_key = api_manager.get_best_api_key()
+    if not api_key:
+        return "[Lỗi: Không có Gemini API key hợp lệ]"
+    headers = {"Content-Type": "application/json"}
+    # Thêm instruction rõ ràng vào obj
+    instruction = (
+        "Hãy tổng hợp tất cả các thông tin sau (bao gồm kiến thức liên quan, trạng thái tâm lý, cảm xúc, lịch sử hội thoại, v.v.) thành một prompt hoàn chỉnh để LLM có thể trả lời tốt nhất cho người dùng. "
+        "Không được lược bỏ bất kỳ thông tin quan trọng nào từ các phần này. Chỉ loại bỏ thông tin trùng lặp hoặc không liên quan. Không cần format lại lịch sử hội thoại, chỉ cần prompt cuối cùng."
+    )
+    obj_with_instruction = obj.copy()
+    obj_with_instruction["instruction_for_gemini"] = instruction
+    payload = {
+        "contents": [
+            {"role": "user", "parts": [{"text": str(obj_with_instruction)}]}
+        ]
+    }
+    url = f"{GEMINI_API_URL}?key={api_key}"
+    try:
+        res = requests.post(url, headers=headers, json=payload, timeout=15)
+        api_manager.mark_key_used(api_key, success=(res.status_code==200))
+        if res.status_code == 200:
+            data = res.json()
+            # Ưu tiên lấy prompt đã tổng hợp từ Gemini
+            if "candidates" in data and data["candidates"]:
+                parts = data["candidates"][0]["content"]["parts"]
+                # Lấy phần text đầu tiên không rỗng
+                for part in parts:
+                    if part.get("text"):
+                        return part["text"]
+                return str(parts)
+            elif "prompt" in data:
+                return data["prompt"]
+            else:
+                return str(data)
+        else:
+            return f"[Lỗi Gemini API {res.status_code}: {res.text}]"
+    except Exception as e:
+        return f"[Lỗi gọi Gemini: {e}]"
 
 def build_prompt_from_object(obj: dict, include_template=True) -> str:
     """
@@ -95,7 +143,9 @@ def build_prompt_from_object(obj: dict, include_template=True) -> str:
     input_text_final = "\n".join(input_content)
 
     if include_template:
-        return f"""### Instruction:\n{instruction}\n\n### Input:\n{input_text_final}\n\n### Response:\n"""
+        # Gọi Gemini để sinh prompt tối ưu
+        gemini_prompt = call_gemini_build_prompt(obj)
+        return gemini_prompt
     else:
         # Return without template markers
         return f"{instruction}\n\n{input_text_final}"

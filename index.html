@@ -531,6 +531,20 @@
       backdrop-filter: blur(20px);
       border: 1px solid rgba(255, 255, 255, 0.3);
     }
+
+    .loading-spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #007bff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
@@ -587,13 +601,14 @@
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
   <script>
-    const apiUrl = "https://lists-cos-irc-dow.trycloudflare.com/model/generate/";
+    const apiUrl = "http://localhost:8000/chat";  // Gọi API Gateway
     const chatBox = document.getElementById("chat-box");
     const promptInput = document.getElementById("prompt");
     const sendBtn = document.getElementById("send-btn");
     const welcomeScreen = document.getElementById("welcome-screen");
 
     let isTyping = false;
+    let chatHistory = [];  // Lưu lịch sử chat
 
     // Configure marked
     marked.setOptions({
@@ -697,6 +712,19 @@
       promptInput.style.height = 'auto';
       sendBtn.disabled = true;
       isTyping = false;
+      chatHistory = [];  // Reset chat history
+    }
+
+    // Hàm xử lý format text để hiển thị đúng xuống dòng
+    function formatResponseText(text) {
+      // Nếu không có ký tự xuống dòng, tự động thêm <br> trước các số thứ tự
+      if (!/\n/.test(text)) {
+        // Thêm <br> trước các số thứ tự (1., 2., 3., ...)
+        text = text.replace(/([0-9]+\. )/g, '<br>$1');
+        // Xóa <br> đầu nếu có
+        text = text.replace(/^<br>/, '');
+      }
+      return text;
     }
 
     async function sendMessage() {
@@ -706,55 +734,77 @@
       isTyping = true;
       sendBtn.disabled = true;
 
-      // Show user message
       createMessage('user', prompt);
-
-      // Show typing indicator
       const typingIndicator = showTypingIndicator();
-
-      // Reset input
       promptInput.value = "";
       promptInput.style.height = 'auto';
 
       try {
-        // Remove typing indicator and create bot message
         typingIndicator.remove();
         const botMsg = createMessage('bot', '');
         
-        // Fetch streaming response
+        // Hiển thị loading indicator
+        botMsg.innerHTML = '<div style="display: flex; align-items: center; gap: 10px; color: #666;"><div class="loading-spinner"></div>Đang xử lý...</div>';
+        
+        // Gọi API Gateway
         const response = await fetch(apiUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            prompt: prompt,
-            max_new_tokens: 1024
+            user_input: prompt,  // API Gateway expect 'user_input' field
+            history: chatHistory,  // Gửi lịch sử chat
+            session_id: "session_" + Date.now()  // Tạo session_id tạm thời
           })
         });
 
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let fullResponse = '';
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          
-          const text = decoder.decode(value);
-          fullResponse += text;
-          
-          // Update with parsed markdown
-          botMsg.innerHTML = marked.parse(fullResponse);
-          chatBox.scrollTop = chatBox.scrollHeight;
-          
-          // Highlight code blocks
-          document.querySelectorAll('pre code').forEach(hljs.highlightElement);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
+
+        const data = await response.json();
+        
+        // Lấy response từ API Gateway
+        let botResponse = data.bot_response || "Xin lỗi, tôi không thể trả lời ngay lúc này.";
+        
+        // Hiển thị warning nếu có
+        if (data.risk_level === "emergency") {
+          botResponse = `<div style="background: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 8px; margin-bottom: 10px; color: #721c24;">🚨 KHẨN CẤP: ${botResponse}</div>`;
+        } else if (data.risk_level === "risky") {
+          botResponse = `<div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 8px; margin-bottom: 10px; color: #856404;">⚠️ RỦI RO: ${botResponse}</div>`;
+        }
+        
+        // Format text để hiển thị đúng xuống dòng
+        botResponse = formatResponseText(botResponse);
+        
+        // Cập nhật message với response đã format
+        botMsg.innerHTML = marked.parse(botResponse);
+        
+        // Cập nhật chat history
+        chatHistory.push({
+          role: "user",
+          content: prompt
+        });
+        chatHistory.push({
+          role: "assistant", 
+          content: data.bot_response || botResponse
+        });
+        
+        // Giữ lịch sử tối đa 4 messages (2 cặp user-bot)
+        if (chatHistory.length > 4) {
+            chatHistory = chatHistory.slice(-4);
+        }
+        
+        document.querySelectorAll('pre code').forEach(hljs.highlightElement);
       } catch (error) {
-        const errorMsg = createMessage('bot', '**Lỗi:** Không thể kết nối với máy chủ. Vui lòng thử lại sau.');
-        console.error(error);
+        console.error('Error:', error);
+        botMsg.innerHTML = `<div style="color: #e74c3c; padding: 10px; background: #fdf2f2; border-radius: 8px; border: 1px solid #fecaca;">
+          ❌ Lỗi kết nối: ${error.message}<br>
+          Vui lòng kiểm tra lại kết nối mạng hoặc thử lại sau.
+        </div>`;
       } finally {
         isTyping = false;
-        sendBtn.disabled = !promptInput.value.trim();
+        sendBtn.disabled = false;
+        chatBox.scrollTop = chatBox.scrollHeight;
       }
     }
 
