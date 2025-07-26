@@ -10,65 +10,78 @@
 Hệ thống chatbot được thiết kế với các tầng xử lý rõ ràng, đảm bảo an toàn, cá nhân hóa và phản hồi linh hoạt. Sơ đồ dưới đây thể hiện kiến trúc tổng quan, chức năng từng module và luồng xử lý chính:
 
 ```mermaid
-%%{init: { 'theme': 'base', 'themeVariables': { 'background': '#f7fafd', 'fontFamily': 'Inter, Arial', 'fontSize': '16px', 'fontWeight': 'bold', 'primaryTextColor': '#222', 'nodeTextColor': '#222', 'lineColor': '#888', 'edgeLabelBackground':'#f7fafd' } } }%%
 flowchart TD
-    User["Người dùng<br/>(Web/Gradio UI)"]
-    Frontend["Frontend<br/>(Gradio App)"]
+    User["Người dùng<br/>(Web UI)"]
     APIGW["API Gateway<br/>(FastAPI)"]
-    Gating["Gating Router<br/>(QuickCheck)<br/>Phân loại mức độ rủi ro"]
-    Sentiment["Sentiment Analysis<br/>Phân tích cảm xúc"]
-    Mental["Mental State Classifier<br/>- Phân loại trạng thái tâm thần"]
-    Emergency["Emergency Handler<br/>Xử lý khẩn cấp"]
-    ModelLLaMA["Model Server<br/>(LLaMA)<br/>Sinh phản hồi chính"]
-    ModelGemini["Gemini API<br/>(Fallback)<br/>Dự phòng khi LLaMA lỗi"]
-    DB["Database<br/>Lưu lịch sử, log, cảnh báo"]
-    Context["Context Tracking<br/>Theo dõi ngữ cảnh hội thoại"]
+    Gating["Gating Router<br/>(Phân loại risk_level)"]
+    Mental["Mental State Classifier"]
+    Sentiment["Sentiment Analysis"]
+    Emergency["Emergency Handler"]
+    Semantic["Semantic Search<br/>(RAG, truy vấn DB)"]
+    DB["Database<br/>(Lưu hội thoại, tri thức)"]
+    Prompt["Prompt Builder<br/>(Tổng hợp thông tin)"]
+    Gemini["Gemini API<br/>(LLM sinh phản hồi)"]
+    Clean["Làm sạch phản hồi<br/>(API Gateway)"]
 
+    User -->|REST| APIGW
+    APIGW -->|REST| Gating
 
-    User --> Frontend
-    Frontend --> APIGW
-    APIGW --> Gating
-    Gating -- "Bình thường" --> ModelLLaMA
-    Gating -- "Có vấn đề" --> Sentiment
-    Gating -- "Có vấn đề" --> Mental
-    Gating -- "Khẩn cấp" --> Emergency
-    Sentiment --> ModelLLaMA
-    Mental --> ModelLLaMA
-    Emergency --> ModelLLaMA
-    Emergency --> DB
-    ModelLLaMA -- "Nếu lỗi" --> ModelGemini
-    ModelLLaMA --> APIGW
-    ModelGemini --> APIGW
-    APIGW --> DB
-    Context --> APIGW
-    APIGW --> Frontend
-    %% Style
-    style User fill:#e3f2fd,stroke:#90caf9,stroke-width:2px,color:#222
-    style Frontend fill:#fffde7,stroke:#ffe082,stroke-width:2px,color:#222
-    style APIGW fill:#f3e5f5,stroke:#ce93d8,stroke-width:2px,color:#222
-    style Gating fill:#ffe0b2,stroke:#ffb74d,stroke-width:2px,color:#222
-    style Sentiment fill:#ffe0b2,stroke:#ffb74d,stroke-width:2px,color:#222
-    style Mental fill:#ffe0b2,stroke:#ffb74d,stroke-width:2px,color:#222
-    style Emergency fill:#ffcdd2,stroke:#e57373,stroke-width:2px,color:#222
-    style ModelLLaMA fill:#c8e6c9,stroke:#81c784,stroke-width:2px,color:#222
-    style ModelGemini fill:#f8bbd0,stroke:#f06292,stroke-width:2px,color:#222
-    style DB fill:#d7ccc8,stroke:#a1887f,stroke-width:2px,color:#222
-    style Context fill:#d1c4e9,stroke:#9575cd,stroke-width:2px,color:#222
+    Gating -- "Normal" --> Prompt
+    Gating -- "Risk" --> Mental
+    Gating -- "Risk" --> Sentiment
+    Mental --> Prompt
+    Sentiment --> Prompt
+    Gating -- "Emergency" --> Emergency
+    Emergency --> Prompt
+
+    Prompt --> Semantic
+    Semantic -- "Truy vấn RAG" --> DB
+    Semantic --> Prompt
+
+    Prompt --> Gemini
+    Gemini --> Clean
+    Clean --> APIGW
+    APIGW --> User
+
+    %% Style với màu trắng và viền đen
+    style User fill:#ffffff,stroke:#000000,stroke-width:1px
+    style APIGW fill:#ffffff,stroke:#000000,stroke-width:1px
+    style Gating fill:#ffffff,stroke:#000000,stroke-width:1px
+    style Mental fill:#ffffff,stroke:#000000,stroke-width:1px
+    style Sentiment fill:#ffffff,stroke:#000000,stroke-width:1px
+    style Emergency fill:#ffffff,stroke:#000000,stroke-width:1px
+    style Semantic fill:#ffffff,stroke:#000000,stroke-width:1px
+    style DB fill:#ffffff,stroke:#000000,stroke-width:1px
+    style Prompt fill:#ffffff,stroke:#000000,stroke-width:1px
+    style Gemini fill:#ffffff,stroke:#000000,stroke-width:1px
+    style Clean fill:#ffffff,stroke:#000000,stroke-width:1px
 ```
 
 ### Chức năng từng module:
-- **Người dùng (Web/Gradio UI)** (*Giao diện trò chuyện cho người dùng cuối*)
-- **Frontend (Gradio App)** (*Hiển thị hội thoại, gửi/nhận message, hiển thị cảnh báo*)
-- **API Gateway (FastAPI)** (*Trung tâm điều phối, nhận message, gọi các service, trả kết quả về frontend*)
-- **Gating Router (QuickCheck)** (*Phân loại mức độ rủi ro: bình thường, có vấn đề, khẩn cấp cho từng message*)
-- **Sentiment Analysis** (*Phân tích cảm xúc, hỗ trợ cá nhân hóa phản hồi*)
+- **Người dùng (Web UI)** (*Giao diện trò chuyện cho người dùng cuối*)
+- **API Gateway (FastAPI)** (*Trung tâm điều phối, nhận message qua REST, gọi các service, làm sạch phản hồi*)
+- **Gating Router** (*Phân loại mức độ rủi ro: Normal, Risk, Emergency cho từng message*)
 - **Mental State Classifier** (*Phân loại trạng thái tâm thần, phát hiện dấu hiệu bất thường*)
+- **Sentiment Analysis** (*Phân tích cảm xúc, hỗ trợ cá nhân hóa phản hồi*)
 - **Emergency Handler** (*Xử lý khẩn cấp, cảnh báo, gọi hotline, ghi log sự kiện nguy hiểm*)
-- **Model Server (LLaMA)** (*Chatbot chính, sinh phản hồi tự nhiên, thông minh*)
-- **Gemini API (Fallback)** (*Chatbot dự phòng, dùng khi LLaMA lỗi hoặc cần đa dạng nguồn trả lời*)
-- **Database** (*Lưu lịch sử hội thoại, log, cảnh báo, trạng thái user*)
-- **Context Tracking** (*Theo dõi ngữ cảnh hội thoại, giúp chatbot trả lời mạch lạc*)
+- **Semantic Search (RAG)** (*Truy vấn database để lấy thông tin liên quan, bổ sung vào prompt*)
+- **Database** (*Lưu lịch sử hội thoại, tri thức, log, cảnh báo*)
+- **Prompt Builder** (*Tổng hợp tất cả thông tin: message, risk level, cảm xúc, trạng thái, tri thức từ DB*)
+- **Gemini API** (*LLM chính sinh phản hồi dựa trên prompt hoàn chỉnh*)
+- **Làm sạch phản hồi** (*Chuẩn hóa, format phản hồi trước khi trả về UI*)
 
+
+### Luồng xử lý chính:
+1. **User** gửi message qua Web UI
+2. **API Gateway** nhận message qua REST, chuyển cho **Gating Router**
+3. **Gating Router** phân loại risk_level:
+   - **Normal:** → Tạo prompt trực tiếp
+   - **Risk:** → Gọi **Mental State Classifier** & **Sentiment Analysis** để phân tích trạng thái tâm thần và cảm xúc, sau đó mới tạo prompt
+   - **Emergency:** → Gọi **Emergency Handler** để cảnh báo, đồng thời thêm thông tin vào prompt
+4. **Semantic Search** truy vấn DB (RAG) để lấy thông tin liên quan, bổ sung vào prompt
+5. **Prompt Builder** tổng hợp tất cả thông tin thành prompt hoàn chỉnh
+6. **Gemini API** sinh phản hồi dựa trên prompt → trả về **API Gateway**
+7. **API Gateway** làm sạch, chuẩn hóa phản hồi → gửi về **UI** cho người dùng
 
 > Sơ đồ trên giúp người mới dễ hình dung toàn bộ luồng xử lý và vai trò từng thành phần trong hệ thống chatbot AI hỗ trợ tâm lý.
 
