@@ -43,6 +43,7 @@ class SemanticIndexer:
                     "source": c["source"],
                     "chunk_id": c["chunk_id"],
                     "url": c["url"],
+                    "chunk_text": c["chunk_text"],  # Thêm chunk_text vào payload
                 } for c in batch
             ]
             self.qdrant.upsert(
