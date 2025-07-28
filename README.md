@@ -89,68 +89,95 @@ flowchart TD
 
 ## 🏗️ Kiến trúc Model Server
 
-Hệ thống sử dụng **Model Inference Server** riêng biệt để serve fine-tuned LLaMA model:
+Hệ thống sử dụng **LLM Server** riêng biệt để serve fine-tuned MentalGPT model:
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Frontend      │    │  API Gateway     │    │ Model Server    │
-│   (Gradio)      │◄──►│  (FastAPI)       │◄──►│  (Fine-tuned    │
-│                 │    │                  │    │   LLaMA)        │
+│   Frontend      │    │  API Gateway     │    │ LLM Server      │
+│   (Web UI)      │◄──►│  (FastAPI)       │◄──►│  (MentalGPT)    │
+│                 │    │  Port: 8000      │    │  Port: 8001     │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
-                              │
-                              ▼
-                       ┌──────────────────┐
-                       │  Gemini API      │
-                       │  (Fallback)      │
-                       └──────────────────┘
 ```
 
 ### Components:
 
-#### 1. Model Server (`model_server.py`)
+#### 1. LLM Server (`llmserver/main.py`)
 - **Port**: 8001
-- **Chức năng**: Serve fine-tuned LLaMA model
+- **Model**: NV9523/MentalGPT (Fine-tuned LLaMA model)
+- **Chức năng**: Serve fine-tuned model với streaming response
 - **Endpoints**:
-  - `GET /health` - Health check
-  - `POST /generate` - Generate response
-  - `GET /model-info` - Model information
+  - `POST /model/generate/` - Generate streaming response
+  - **Request Format**:
+    ```json
+    {
+      "prompt": "User message...",
+      "max_new_tokens": 1024
+    }
+    ```
+  - **Response**: Streaming text response
 
-#### 2. API Gateway (`api_gateway/main.py`)
+#### 2. API Gateway (`api_gateway/api.py`)
 - **Port**: 8000
-- **Chức năng**: Main API với fallback logic
+- **Chức năng**: Main API với tích hợp đầy đủ các services
 - **Endpoints**:
-  - `POST /chat` - Main chat endpoint (được gọi từ Web UI)
+  - `POST /api/v1/chat` - Main chat endpoint (từ chatbot_api.py)
+  - `POST /chat` - Legacy chat endpoint
   - `GET /health` - Health check
   - `GET /api-stats` - API statistics
+  - `POST /emergency` - Emergency handling
+  - `POST /semantic_search` - RAG search
+  - `GET /context/{user_id}` - Get conversation context
+  - `DELETE /context/{user_id}` - Clear conversation context
 
 #### 3. API Request/Response Format
 
 **Request từ Web UI:**
 ```json
 {
-  "user_input": "Tôi cảm thấy căng thẳng...",
+  "message": "Tôi cảm thấy căng thẳng...",
+  "user_id": "user_123",
+  "session_id": "session_1234567890",
   "history": [
     {"role": "user", "content": "..."},
     {"role": "assistant", "content": "..."}
-  ],
-  "session_id": "session_1234567890"
+  ]
 }
 ```
 
 **Response từ API Gateway:**
 ```json
 {
-  "bot_response": "Tôi hiểu cảm xúc của bạn...",
+  "response": "Tôi hiểu cảm xúc của bạn...",
+  "sentiment": "negative",
+  "mental_state": "anxiety",
   "risk_level": "normal|risky|emergency",
-  "sentiment": "positive|negative|neutral",
-  "mental_state": "depression|anxiety|normal"
+  "warning": "⚠️ RỦI RO: Gợi ý liên hệ chuyên gia..."
 }
 ```
 
-#### 4. Risk Level Handling
-- **Normal**: Hiển thị phản hồi bình thường
-- **Risky**: Hiển thị ⚠️ RỦI RO + phản hồi
-- **Emergency**: Hiển thị 🚨 KHẨN CẤP + phản hồi + cảnh báo
+#### 4. Processing Pipeline
+
+1. **Gating Router** (`services/gating_router/`) - Phân loại risk level
+2. **Sentiment Analysis** (`services/setiment_analysis/`) - Phân tích cảm xúc
+3. **Mental State Classifier** (`services/mental_state_classifier/`) - Phân loại trạng thái tâm thần
+4. **Prompt Builder** - Tổng hợp context và tạo prompt
+5. **LLM Generation** - Gọi MentalGPT model
+6. **Response Processing** - Xử lý và format phản hồi
+
+#### 5. Risk Level Handling
+- **Normal**: Phản hồi bình thường
+- **Risky**: ⚠️ RỦI RO + gợi ý liên hệ chuyên gia
+- **Emergency**: 🚨 KHẨN CẤP + cảnh báo hotline + phản hồi hỗ trợ
+
+#### 6. Model Configuration
+- **Base Model**: LLaMA với PEFT adapter
+- **Fine-tuned Model**: NV9523/MentalGPT
+- **Device**: CUDA (GPU) với torch.float16
+- **Generation Parameters**:
+  - Temperature: 0.1
+  - Top-k: 50
+  - Top-p: 0.95
+  - Repetition penalty: 1.0
 
 ---
 
