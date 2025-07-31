@@ -16,20 +16,36 @@ class SemanticIndexer:
                  qdrant_port: int = QDRANT_PORT, 
                  collection: str = QDRANT_COLLECTION, 
                  embedding_model: str = EMBEDDING_MODEL):
-        self.qdrant = QdrantClient(host=qdrant_host, port=qdrant_port)
+        self.qdrant_host = qdrant_host
+        self.qdrant_port = qdrant_port
         self.collection = collection
-        self.model = SentenceTransformer(embedding_model)
-        # Tạo collection nếu chưa có
-        if self.collection not in [c.name for c in self.qdrant.get_collections().collections]:
-            self.qdrant.recreate_collection(
-                collection_name=self.collection,
-                vectors_config=models.VectorParams(size=384, distance=models.Distance.COSINE)
-            )
+        self.qdrant = None
+        self.model = None
+        
+        try:
+            self.qdrant = QdrantClient(host=qdrant_host, port=qdrant_port)
+            self.model = SentenceTransformer(embedding_model)
+            # Tạo collection nếu chưa có
+            if self.collection not in [c.name for c in self.qdrant.get_collections().collections]:
+                self.qdrant.recreate_collection(
+                    collection_name=self.collection,
+                    vectors_config=models.VectorParams(size=384, distance=models.Distance.COSINE)
+                )
+            print(f"✅ Qdrant connected at {qdrant_host}:{qdrant_port}")
+        except Exception as e:
+            print(f"⚠️ Qdrant connection failed: {e}")
+            print("Semantic search will be disabled")
 
     def embed_texts(self, texts: List[str]) -> np.ndarray:
+        if self.model is None:
+            raise Exception("Model not loaded - Qdrant connection failed")
         return self.model.encode(texts, show_progress_bar=False)
 
     def upsert_chunks(self, chunk_records: List[Dict[str, Any]]):
+        if self.qdrant is None:
+            print("⚠️ Cannot upsert chunks - Qdrant not connected")
+            return
+            
         batch_size = 64
         for i in range(0, len(chunk_records), batch_size):
             batch = chunk_records[i:i+batch_size]
@@ -58,6 +74,10 @@ class SemanticIndexer:
             )
 
     def query(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
+        if self.qdrant is None:
+            print("⚠️ Cannot query - Qdrant not connected")
+            return []
+            
         query_emb = self.embed_texts([query])[0]
         search_result = self.qdrant.search(
             collection_name=self.collection,
