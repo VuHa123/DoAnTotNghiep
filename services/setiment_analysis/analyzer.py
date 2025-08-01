@@ -4,9 +4,12 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from services.common_schemas import SentimentOutput
 
 
-# Đường dẫn model
+# Đường dẫn model (fallback)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 MODEL_DIR = "/home/aero/DoAnTotNghiep/models/weights/sentiment"
+
+# HuggingFace model repository
+HF_MODEL_NAME = "Vuha123/Sentiment"
 
 # Nếu bạn muốn dùng nhãn thay vì chỉ số
 LABELS = ["0", "1", "2", "3"]  # Hoặc ["nhẹ", "trung bình", "nặng", "khẩn cấp"]
@@ -16,20 +19,17 @@ tokenizer = None
 model = None
 
 try:
-    if os.path.exists(MODEL_DIR):
-        # Sử dụng tokenizer và model từ checkpoint đã fine-tune
-        tokenizer = AutoTokenizer.from_pretrained(MODEL_DIR)
-        if tokenizer.pad_token is None:
-            tokenizer.pad_token = tokenizer.eos_token
-        
-        # Load với AutoModelForSequenceClassification
-        model = AutoModelForSequenceClassification.from_pretrained(MODEL_DIR)
-        model.eval()
-        print(f"✅ Sentiment model loaded with fallback from {MODEL_DIR}")
-    else:
-        print(f"⚠️ Sentiment model directory not found: {MODEL_DIR}")
+    # Load from HuggingFace only
+    print(f"🔄 Loading sentiment model from HuggingFace: {HF_MODEL_NAME}")
+    tokenizer = AutoTokenizer.from_pretrained(HF_MODEL_NAME)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    
+    model = AutoModelForSequenceClassification.from_pretrained(HF_MODEL_NAME)
+    model.eval()
+    print(f"✅ Sentiment model loaded from HuggingFace: {HF_MODEL_NAME}")
 except Exception as e:
-    print(f"❌ Error loading sentiment model: {e}")
+    print(f"❌ Error loading sentiment model from HuggingFace: {e}")
     print("Using fallback sentiment analysis")
 
 def detect_sentiment_intensity(text: str) -> int:

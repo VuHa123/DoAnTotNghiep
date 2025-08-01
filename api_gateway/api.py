@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Optional
 import uvicorn
@@ -54,7 +55,13 @@ async def log_requests(request: Request, call_next):
 # Khởi tạo services
 # chatbot_service = ChatbotService()
 # emergency_handler = EmergencyHandler()
-router = MessageRouter(model_path="models/weights/gating_router")
+try:
+    # Không cần truyền model_path vì sẽ load từ HuggingFace
+    router = MessageRouter(model_path="")  # Empty path, will use HuggingFace only
+    print("✅ Gating router initialized successfully")
+except Exception as e:
+    print(f"❌ Failed to initialize gating router: {e}")
+    router = None
 
 # Schema definitions
 class ChatRequest(BaseModel):
@@ -135,7 +142,12 @@ async def handle_chat(req: ChatRequest):
             logger.info(f"[chat] 📨 History messages: {[msg[:50] + '...' if len(msg) > 50 else msg for msg in req.history]}")
         
         # 1. Gating router - đánh giá rủi ro
-        risk_level, confidence = router.route(user_message)
+        if router is None:
+            # Fallback khi router không load được
+            logger.warning("⚠️ Gating router not available, using fallback risk assessment")
+            risk_level, confidence = "normal", 0.5
+        else:
+            risk_level, confidence = router.route(user_message)
         sentiment_obj = None
         mental_state_obj = None
         warning = None
@@ -161,8 +173,8 @@ async def handle_chat(req: ChatRequest):
                 }
             }
         elif risk_level == "risky":
-            sentiment_obj = detect_sentiment_label(user_message)
             mental_state_obj = detect_mental_state(user_message)
+            sentiment_obj = detect_sentiment_label(user_message)
             prompt_obj = {
                 "input": user_message,
                 "context": {
@@ -174,6 +186,8 @@ async def handle_chat(req: ChatRequest):
                 }
             }
         elif risk_level == "emergency":
+            mental_state_obj = detect_mental_state(user_message)
+            sentiment_obj = detect_sentiment_label(user_message)
             warning = EmergencyHandler().handle_emergency(
                 user_id=req.session_id or "anonymous",
                 location=None,
@@ -229,6 +243,142 @@ async def handle_chat(req: ChatRequest):
     except Exception as e:
         logger.error(f"Error in chat endpoint: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+# Streaming chat endpoint
+@app.post("/chat/stream")
+async def handle_chat_stream(req: ChatRequest):
+    """
+    Streaming chat handler: Returns response as Server-Sent Events
+    """
+    async def generate_stream():
+        try:
+            user_message = req.user_input
+            logger.info(f"[stream] 📨 Received history: {req.history}")
+            logger.info(f"[stream] 📨 Current user input: {user_message}")
+            
+            # Validate history
+            if req.history and user_message in req.history:
+                req.history = [msg for msg in req.history if msg != user_message]
+            
+            # 1. Gating router
+            if router is None:
+                risk_level, confidence = "normal", 0.5
+            else:
+                risk_level, confidence = router.route(user_message)
+            
+            sentiment_obj = None
+            mental_state_obj = None
+            warning = None
+            
+            # 2. Semantic search
+            knowledge_chunks = indexer.query(user_message, top_k=5)
+            filtered_chunks = indexer.filter_knowledge_by_similarity(
+                user_input=user_message, 
+                knowledge_chunks=knowledge_chunks, 
+                similarity_threshold=0.8
+            )
+            knowledge_texts = [chunk.get("chunk_text", "") for chunk in filtered_chunks]
+            knowledge_similarity_scores = [chunk.get("similarity_score", 0.0) for chunk in filtered_chunks]
+            
+            # 3. Build prompt object
+            if risk_level == "normal":
+                prompt_obj = {
+                    "input": user_message,
+                    "context": {
+                        "history": req.history[-1:] if req.history else [],
+                        "risk_level": risk_level,
+                        "knowledge": knowledge_texts[:1]
+                    }
+                }
+            elif risk_level == "risky":
+                mental_state_obj = detect_mental_state(user_message)
+                sentiment_obj = detect_sentiment_label(user_message)
+                prompt_obj = {
+                    "input": user_message,
+                    "context": {
+                        "history": req.history[-2:] if req.history else [],
+                        "risk_level": risk_level,
+                        "mental_state": getattr(mental_state_obj, 'mental_state', ''),
+                        "sentiment_intensity": getattr(sentiment_obj, 'sentiment', ''),
+                        "knowledge": knowledge_texts
+                    }
+                }
+            elif risk_level == "emergency":
+                mental_state_obj = detect_mental_state(user_message)
+                sentiment_obj = detect_sentiment_label(user_message)
+                warning = EmergencyHandler().handle_emergency(
+                    user_id=req.session_id or "anonymous",
+                    location=None,
+                    contact=None
+                ).get("message", "")
+                prompt_obj = {
+                    "input": user_message,
+                    "context": {
+                        "history": req.history[-2:] if req.history else [],
+                        "risk_level": risk_level,
+                        "mental_state": getattr(mental_state_obj, 'mental_state', ''),
+                        "sentiment_intensity": getattr(sentiment_obj, 'sentiment', ''),
+                        "knowledge": knowledge_texts,
+                        "warning": warning
+                    }
+                }
+            else:
+                prompt_obj = {
+                    "input": user_message,
+                    "context": {
+                        "history": req.history[-1:] if req.history else [],
+                        "risk_level": risk_level,
+                        "knowledge": knowledge_texts[:1]
+                    }
+                }
+            
+            # 4. Build prompt
+            try:
+                prompt = build_prompt_from_object(prompt_obj)
+            except Exception as e:
+                logger.warning(f"Prompt builder failed, using fallback: {e}")
+                prompt = json.dumps(prompt_obj, ensure_ascii=False)
+            
+            # 5. Get LLM response (for now, we'll stream the full response)
+            # In the future, this could be modified to stream from the LLM itself
+            reply = call_gemini_llm(prompt)
+            
+            # 6. Process warning
+            if not warning:
+                if risk_level == "risky":
+                    warning = "⚠️ RỦI RO: Bạn có thể cân nhắc liên hệ chuyên gia tâm lý để được hỗ trợ tốt hơn."
+                elif sentiment_obj and (getattr(sentiment_obj, 'sentiment', None) in ["3", "negative"]) and (mental_state_obj and getattr(mental_state_obj, 'mental_state', None) != "normal"):
+                    warning = "💡 Gợi ý: Hãy thử các hoạt động thư giãn như thiền, tập thể dục, hoặc nói chuyện với người thân."
+            
+            # Stream the response
+            response_data = {
+                "bot_response": reply,
+                "risk_level": risk_level,
+                "confidence": confidence,
+                "emotion_label": getattr(sentiment_obj, 'sentiment', '') if sentiment_obj else '',
+                "mental_state": getattr(mental_state_obj, 'mental_state', '') if mental_state_obj else '',
+                "suggestion": warning or '',
+                "knowledge": knowledge_texts,
+                "knowledge_similarity_scores": knowledge_similarity_scores
+            }
+            
+            # Send the complete response as a single chunk for now
+            yield f"data: {json.dumps(response_data, ensure_ascii=False)}\n\n"
+            
+        except Exception as e:
+            logger.error(f"Error in streaming chat endpoint: {e}")
+            error_data = {"error": f"Internal server error: {str(e)}"}
+            yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"
+    
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/plain",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Content-Type": "text/event-stream"
+        }
+    )
 
 # Emergency endpoint:Xử lý khẩn cấp.
 @app.post("/emergency")

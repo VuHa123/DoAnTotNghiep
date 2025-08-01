@@ -11,6 +11,9 @@ MODEL_DIR = os.path.join(BASE_DIR, "models", "weights", "mental_state")
 LABELS_PATH = os.path.join(BASE_DIR,"services", "mental_state_classifier", "config", "labels.json")
 THRESHOLDS_PATH = os.path.join(BASE_DIR,"services", "mental_state_classifier", "config", "thresholds.json")
 
+# HuggingFace model repository
+HF_MODEL_NAME = "Vuha123/State"
+
 # Load nhãn và ngưỡng
 try:
     with open(LABELS_PATH, "r") as f:
@@ -29,15 +32,14 @@ tokenizer = None
 model = None
 
 try:
-    if os.path.exists(MODEL_DIR):
-        tokenizer = AutoTokenizer.from_pretrained(MODEL_DIR)
-        model = AutoModelForSequenceClassification.from_pretrained(MODEL_DIR)
-        model.eval()
-        print(f"✅ Mental state model loaded from {MODEL_DIR}")
-    else:
-        print(f"⚠️ Mental state model directory not found: {MODEL_DIR}")
+    # Load from HuggingFace only
+    print(f"🔄 Loading mental state model from HuggingFace: {HF_MODEL_NAME}")
+    tokenizer = AutoTokenizer.from_pretrained(HF_MODEL_NAME)
+    model = AutoModelForSequenceClassification.from_pretrained(HF_MODEL_NAME)
+    model.eval()
+    print(f"✅ Mental state model loaded from HuggingFace: {HF_MODEL_NAME}")
 except Exception as e:
-    print(f"❌ Error loading mental state model: {e}")
+    print(f"❌ Error loading mental state model from HuggingFace: {e}")
     print("Using fallback classification")
 
 def detect_mental_state(text: str) -> MentalStateOutput:

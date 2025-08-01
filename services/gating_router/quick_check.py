@@ -5,17 +5,26 @@ import os
 class QuickCheckModel:
     def __init__(self, model_path: str):
         """
-        Load model từ thư mục best_model chứa các file transformers
+        Load model từ HuggingFace hoặc thư mục local
         """
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
-        # Load tokenizer và model từ thư mục best_model
-        self.tokenizer = AutoTokenizer.from_pretrained(model_path)
-        if self.tokenizer.pad_token is None:
-            self.tokenizer.pad_token = self.tokenizer.eos_token
-        self.model = AutoModelForSequenceClassification.from_pretrained(model_path)
-        self.model.to(self.device)
-        self.model.eval()
+        # HuggingFace model repository
+        HF_MODEL_NAME = "Vuha123/Gating_router"
+        
+        try:
+            # Load from HuggingFace only
+            print(f"🔄 Loading gating router model from HuggingFace: {HF_MODEL_NAME}")
+            self.tokenizer = AutoTokenizer.from_pretrained(HF_MODEL_NAME)
+            if self.tokenizer.pad_token is None:
+                self.tokenizer.pad_token = self.tokenizer.eos_token
+            self.model = AutoModelForSequenceClassification.from_pretrained(HF_MODEL_NAME)
+            self.model.to(self.device)
+            self.model.eval()
+            print(f"✅ Gating router model loaded from HuggingFace: {HF_MODEL_NAME}")
+        except Exception as e:
+            print(f"❌ Error loading gating router model from HuggingFace: {e}")
+            raise Exception("Failed to load gating router model from HuggingFace")
         
         # Mapping label
         self.id2label = {0: "normal", 1: "risky", 2: "emergency"}

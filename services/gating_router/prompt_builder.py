@@ -46,7 +46,7 @@ def get_label_descriptions():
 def call_gemini_build_prompt(obj: dict) -> str:
     """
     Gửi thông tin sang Gemini để tạo prompt tối ưu cho LLM.
-    Tạo prompt có cấu trúc rõ ràng và dễ hiểu cho Gemini.
+    Sử dụng build_prompt_from_object để tạo prompt có cấu trúc, sau đó gửi cho Gemini tối ưu hóa.
     """
     print(f"[GEMINI] 🚀 Starting Gemini prompt generation...")
     api_key = api_manager.get_best_api_key()
@@ -54,58 +54,11 @@ def call_gemini_build_prompt(obj: dict) -> str:
         print(f"[GEMINI] ❌ No valid API key found")
         return "[Lỗi: Không có Gemini API key hợp lệ]"
     
-    # Tạo prompt có cấu trúc rõ ràng
-    instruction = obj.get("instruction", "Bạn là một trợ lý tâm lý chuyên nghiệp. Hãy lắng nghe, đồng cảm và phản hồi nhẹ nhàng.")
-    input_text = obj.get("input", "")
-    context = obj.get("context", {})
+    # Sử dụng build_prompt_from_object để tạo prompt có cấu trúc
+    base_prompt = build_prompt_from_object(obj, include_template=False)
     
-    # Xây dựng prompt có cấu trúc
-    prompt_parts = []
-    prompt_parts.append("=== HƯỚNG DẪN CHO TRỢ LÝ TÂM LÝ ===")
-    prompt_parts.append(instruction)
-    prompt_parts.append("")
-    
-    # Thêm thông tin context
-    if context:
-        prompt_parts.append("=== THÔNG TIN NGỮ CẢNH ===")
-        
-        mental_state = context.get("mental_state", "")
-        if mental_state:
-            prompt_parts.append(f"Trạng thái tâm lý: {mental_state}")
-        
-        sentiment = context.get("sentiment_intensity", "")
-        if sentiment:
-            prompt_parts.append(f"Mức độ cảm xúc: {sentiment}")
-        
-        risk_level = context.get("risk_level", "")
-        if risk_level:
-            prompt_parts.append(f"Mức độ rủi ro: {risk_level}")
-        
-        knowledge = context.get("knowledge", [])
-        if knowledge:
-            prompt_parts.append("Kiến thức liên quan:")
-            for i, chunk in enumerate(knowledge, 1):
-                prompt_parts.append(f"{i}. {chunk}")
-        
-        history = context.get("history", [])
-        if history:
-            prompt_parts.append("Lịch sử hội thoại:")
-            for i, msg in enumerate(history, 1):
-                prompt_parts.append(f"{i}. Người dùng: {msg}")
-        
-        prompt_parts.append("")
-    
-    prompt_parts.append("=== TIN NHẮN HIỆN TẠI ===")
-    prompt_parts.append(f"Người dùng: {input_text}")
-    prompt_parts.append("")
-    prompt_parts.append("=== YÊU CẦU ===")
-    prompt_parts.append("Dựa trên tất cả thông tin trên, hãy tạo một prompt hoàn chỉnh và tối ưu để LLM có thể trả lời tốt nhất cho người dùng. Prompt phải:")
-    prompt_parts.append("- Bao gồm đầy đủ context quan trọng")
-    prompt_parts.append("- Có cấu trúc rõ ràng, dễ hiểu")
-    prompt_parts.append("- Tập trung vào việc hỗ trợ tâm lý hiệu quả")
-    prompt_parts.append("- Không quá dài, nhưng đầy đủ thông tin cần thiết")
-    
-    structured_prompt = "\n".join(prompt_parts)
+    # Thêm yêu cầu cho Gemini
+    structured_prompt = f"{base_prompt}\n\n=== YÊU CẦU CHO GEMINI ===\nDựa trên tất cả thông tin trên, hãy tạo một prompt hoàn chỉnh và tối ưu để LLM có thể trả lời tốt nhất cho người dùng. Prompt phải:\n- Bao gồm đầy đủ context quan trọng\n- Có cấu trúc rõ ràng, dễ hiểu\n- Tập trung vào việc hỗ trợ tâm lý hiệu quả\n- Không quá dài, nhưng đầy đủ thông tin cần thiết"
     
     headers = {"Content-Type": "application/json"}
     payload = {

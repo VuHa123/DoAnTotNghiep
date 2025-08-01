@@ -5,6 +5,7 @@ const API_CONFIG = {
     
     // Các endpoint
     CHAT_ENDPOINT: "/chat",
+    CHAT_STREAM_ENDPOINT: "/chat/stream",
     HEALTH_ENDPOINT: "/health",
     EMERGENCY_ENDPOINT: "/emergency",
     SEMANTIC_SEARCH_ENDPOINT: "/semantic_search"

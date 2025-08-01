@@ -251,10 +251,15 @@
 
     .message-content p {
       margin-bottom: 16px;
+      line-height: 1.7;
     }
 
     .message-content p:last-child {
       margin-bottom: 0;
+    }
+
+    .message-content p:empty {
+      display: none;
     }
 
     .message-content ol {
@@ -440,6 +445,37 @@
     li {
       margin: 8px 0;
       line-height: 1.6;
+    }
+
+    /* Markdown elements */
+    .message-content h1, .message-content h2, .message-content h3, 
+    .message-content h4, .message-content h5, .message-content h6 {
+      margin: 20px 0 12px 0;
+      color: #2d3748;
+      font-weight: 600;
+    }
+
+    .message-content h1 { font-size: 24px; }
+    .message-content h2 { font-size: 20px; }
+    .message-content h3 { font-size: 18px; }
+    .message-content h4 { font-size: 16px; }
+    .message-content h5 { font-size: 14px; }
+    .message-content h6 { font-size: 12px; }
+
+    .message-content strong {
+      font-weight: 600;
+      color: #2d3748;
+    }
+
+    .message-content em {
+      font-style: italic;
+      color: #4a5568;
+    }
+
+    .message-content hr {
+      border: none;
+      border-top: 1px solid #e2e8f0;
+      margin: 20px 0;
     }
 
     /* Tables */
@@ -636,7 +672,9 @@
         return hljs.highlight(code, { language }).value;
       },
       breaks: true,
-      gfm: true
+      gfm: true,
+      headerIds: false,
+      mangle: false
     });
 
     // Auto-resize textarea
@@ -660,6 +698,8 @@
       }
     }
 
+
+
     function createMessage(role, content) {
       hideWelcomeScreen();
       
@@ -676,11 +716,25 @@
       const contentDiv = document.createElement('div');
       contentDiv.className = 'message-content';
       
-      if (role === 'user') {
-        contentDiv.innerHTML = marked.parse(content);
-      } else {
-        contentDiv.innerHTML = marked.parse(content);
+      // Process content for better formatting
+      let processedContent = content;
+      
+      // Add paragraph breaks before titles with single * (italic) or ** (bold)
+      processedContent = processedContent.replace(/\*([^*]+):\*/g, '\n\n*$1:*');  // Single * for italic
+      processedContent = processedContent.replace(/\*\*([^*]+):\*\*/g, '\n\n**$1:**');  // Double ** for bold
+      
+      // Add line breaks before numbered list items (pattern: 1. Item, 2. Item, etc.)
+      processedContent = processedContent.replace(/(\d+\.\s+[^\n]+)/g, '\n$1');
+      
+      // Add line breaks before bullet list items (pattern: * Item) but not after numbered items
+      processedContent = processedContent.replace(/(?<!\d\.\s)\* ([^*\n]+)/g, '\n* $1');
+      
+      // If content doesn't contain paragraph breaks, add them after sentences
+      if (!processedContent.includes('\n\n')) {
+        processedContent = processedContent.replace(/([.!?])\s+/g, "$1\n\n");
       }
+      
+      contentDiv.innerHTML = marked.parse(processedContent);
       
       messageInner.appendChild(avatar);
       messageInner.appendChild(contentDiv);
@@ -800,15 +854,6 @@
         // Debug: Log processed content
         console.log("Processed response content:", responseContent);
         
-        // Ensure proper line breaks for numbered lists
-        responseContent = responseContent
-          .replace(/(\d+\.\s)/g, '\n$1')  // Add line break before numbered items
-          .replace(/\n{3,}/g, '\n\n')  // Limit consecutive line breaks
-          .trim();  // Remove leading/trailing whitespace
-        
-        // Debug: Log final processed content
-        console.log("Final processed content:", responseContent);
-        
         // Add risk level indicator if not normal
         if (data.risk_level && data.risk_level !== "normal") {
           const riskEmoji = data.risk_level === "emergency" ? "🚨" : "⚠️";
@@ -820,7 +865,10 @@
           responseContent += `\n\n---\n\n${data.suggestion}`;
         }
         
-        // Remove typing indicator and create bot message with full content
+        // Debug: Log final processed content
+        console.log("Final processed content:", responseContent);
+        
+        // Remove typing indicator and create bot message with raw content
         typingIndicator.remove();
         const botMsg = createMessage('bot', responseContent);
         
