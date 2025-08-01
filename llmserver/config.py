@@ -4,3 +4,5 @@ def load_url(filepath="API_LLM_SERVER.txt") -> str:
     return url + "/model/generate/"
 
 API_LLM = load_url()
+# if __name__ == "__main__":
+#     print(API_LLM)
