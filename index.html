@@ -257,34 +257,6 @@
       margin-bottom: 0;
     }
 
-    .message-content ol {
-      margin: 16px 0;
-      padding-left: 24px;
-    }
-
-    .message-content ol li {
-      margin: 8px 0;
-      line-height: 1.6;
-    }
-
-    .message-content ol li:last-child {
-      margin-bottom: 4px;  /* Reduce margin after last list item */
-    }
-
-    .message-content ul {
-      margin: 16px 0;
-      padding-left: 24px;
-    }
-
-    .message-content ul li {
-      margin: 8px 0;
-      line-height: 1.6;
-    }
-
-    .message-content ul li:last-child {
-      margin-bottom: 4px;  /* Reduce margin after last list item */
-    }
-
     /* Typing indicator */
     .typing-container {
       display: flex;
@@ -614,18 +586,14 @@
 
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
-  <script src="../config.js"></script>
   <script>
-    // Sử dụng cấu hình từ config.js
-    const apiUrl = getApiUrl(API_CONFIG.CHAT_ENDPOINT);
+    const apiUrl = "https://setup-mentioned-shannon-quote.trycloudflare.com/model/generate/";
     const chatBox = document.getElementById("chat-box");
     const promptInput = document.getElementById("prompt");
     const sendBtn = document.getElementById("send-btn");
     const welcomeScreen = document.getElementById("welcome-screen");
 
     let isTyping = false;
-    let chatHistory = [];
-    let sessionId = "session_" + Date.now();
 
     // Configure marked
     marked.setOptions({
@@ -677,7 +645,7 @@
       if (role === 'user') {
         contentDiv.innerHTML = marked.parse(content);
       } else {
-        contentDiv.innerHTML = marked.parse(content);
+        contentDiv.innerHTML = content;
       }
       
       messageInner.appendChild(avatar);
@@ -729,8 +697,6 @@
       promptInput.style.height = 'auto';
       sendBtn.disabled = true;
       isTyping = false;
-      chatHistory = [];
-      sessionId = "session_" + Date.now();
     }
 
     async function sendMessage() {
@@ -751,79 +717,41 @@
       promptInput.style.height = 'auto';
 
       try {
-        // Add user message to history
-        chatHistory.push(prompt);
+        // Remove typing indicator and create bot message
+        typingIndicator.remove();
+        const botMsg = createMessage('bot', '');
         
-        // Fetch response from API gateway
+        // Fetch streaming response
         const response = await fetch(apiUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            user_input: prompt,
-            history: chatHistory.slice(-5), // Keep last 5 messages for context
-            session_id: sessionId
+            prompt: prompt,
+            max_new_tokens: 1024
           })
         });
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let fullResponse = '';
 
-        const data = await response.json();
-        
-        // Debug: Log the raw response
-        console.log("Raw bot response:", data.bot_response);
-        
-        // Add bot response to history
-        chatHistory.push(data.bot_response);
-        
-        // Build response content with additional info
-        let responseContent = data.bot_response;
-        
-        // Debug: Log processed content
-        console.log("Processed response content:", responseContent);
-        
-        // Ensure proper line breaks for numbered lists
-        responseContent = responseContent
-          .replace(/(\d+\.\s)/g, '\n$1')  // Add line break before numbered items
-          .replace(/\n{3,}/g, '\n\n')  // Limit consecutive line breaks
-          .trim();  // Remove leading/trailing whitespace
-        
-        // Debug: Log final processed content
-        console.log("Final processed content:", responseContent);
-        
-        // Add risk level indicator if not normal
-        if (data.risk_level && data.risk_level !== "normal") {
-          const riskEmoji = data.risk_level === "emergency" ? "🚨" : "⚠️";
-          responseContent = `${riskEmoji} **${data.risk_level.toUpperCase()}**\n\n${responseContent}`;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          const text = decoder.decode(value);
+          fullResponse += text;
+          
+          // Update with parsed markdown
+          botMsg.innerHTML = marked.parse(fullResponse);
+          chatBox.scrollTop = chatBox.scrollHeight;
+          
+          // Highlight code blocks
+          document.querySelectorAll('pre code').forEach(hljs.highlightElement);
         }
-        
-        // Add suggestion if available
-        if (data.suggestion) {
-          responseContent += `\n\n---\n\n${data.suggestion}`;
-        }
-        
-        // Remove typing indicator and create bot message with full content
-        typingIndicator.remove();
-        const botMsg = createMessage('bot', responseContent);
-        
-        // Scroll to bottom
-        chatBox.scrollTop = chatBox.scrollHeight;
-        
-        // Highlight code blocks
-        document.querySelectorAll('pre code').forEach(hljs.highlightElement);
-        
-        // Log additional info to console for monitoring
-        console.log("Chat Response:", {
-          risk_level: data.risk_level,
-          confidence: data.confidence,
-          emotion_label: data.emotion_label,
-          knowledge_count: data.knowledge ? data.knowledge.length : 0
-        });
-        
       } catch (error) {
         const errorMsg = createMessage('bot', '**Lỗi:** Không thể kết nối với máy chủ. Vui lòng thử lại sau.');
-        console.error('Error:', error);
+        console.error(error);
       } finally {
         isTyping = false;
         sendBtn.disabled = !promptInput.value.trim();
