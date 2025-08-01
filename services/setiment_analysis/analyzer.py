@@ -3,6 +3,7 @@ import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from services.common_schemas import SentimentOutput
 
+
 # Đường dẫn model
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 MODEL_DIR = "/home/aero/DoAnTotNghiep/models/weights/sentiment"
@@ -20,9 +21,11 @@ try:
         tokenizer = AutoTokenizer.from_pretrained(MODEL_DIR)
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
+        
+        # Load với AutoModelForSequenceClassification
         model = AutoModelForSequenceClassification.from_pretrained(MODEL_DIR)
         model.eval()
-        print(f"✅ Sentiment model loaded from {MODEL_DIR}")
+        print(f"✅ Sentiment model loaded with fallback from {MODEL_DIR}")
     else:
         print(f"⚠️ Sentiment model directory not found: {MODEL_DIR}")
 except Exception as e:
@@ -47,6 +50,7 @@ def detect_sentiment_intensity(text: str) -> int:
         inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
         with torch.no_grad():
             outputs = model(**inputs)
+            # Sử dụng logits cho sentiment analysis
             probs = torch.softmax(outputs.logits, dim=-1)[0]
             best_class = int(torch.argmax(probs).item())
         return best_class  # Trả ra 0–3
