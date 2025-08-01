@@ -585,198 +585,184 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
-  <script>
-    const apiUrl = "https://setup-mentioned-shannon-quote.trycloudflare.com/model/generate/";
-    const chatBox = document.getElementById("chat-box");
-    const promptInput = document.getElementById("prompt");
-    const sendBtn = document.getElementById("send-btn");
-    const welcomeScreen = document.getElementById("welcome-screen");
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+<script>
+  const apiUrl = "https://setup-mentioned-shannon-quote.trycloudflare.com/model/generate/";
+  const chatBox = document.getElementById("chat-box");
+  const promptInput = document.getElementById("prompt");
+  const sendBtn = document.getElementById("send-btn");
+  const welcomeScreen = document.getElementById("welcome-screen");
 
-    let isTyping = false;
+  let isTyping = false;
 
-    // Configure marked
-    marked.setOptions({
-      highlight: function(code, lang) {
-        const language = hljs.getLanguage(lang) ? lang : 'plaintext';
-        return hljs.highlight(code, { language }).value;
-      },
-      breaks: true,
-      gfm: true
-    });
+  // Configure marked
+  marked.setOptions({
+    highlight: function(code, lang) {
+      const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+      return hljs.highlight(code, { language }).value;
+    },
+    breaks: true,
+    gfm: true
+  });
 
-    // Auto-resize textarea
-    promptInput.addEventListener('input', function() {
-      this.style.height = 'auto';
-      this.style.height = Math.min(this.scrollHeight, 200) + 'px';
-      
-      // Enable/disable send button
-      sendBtn.disabled = !this.value.trim() || isTyping;
-    });
+  // Auto-resize textarea
+  promptInput.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+    sendBtn.disabled = !this.value.trim() || isTyping;
+  });
 
-    function hideWelcomeScreen() {
-      if (welcomeScreen) {
-        welcomeScreen.style.display = 'none';
-      }
+  function hideWelcomeScreen() {
+    if (welcomeScreen) {
+      welcomeScreen.style.display = 'none';
+    }
+  }
+
+  function showWelcomeScreen() {
+    if (welcomeScreen) {
+      welcomeScreen.style.display = 'flex';
+    }
+  }
+
+  function createMessage(role, content) {
+    hideWelcomeScreen();
+
+    const message = document.createElement('div');
+    message.className = `message ${role}`;
+
+    const messageInner = document.createElement('div');
+    messageInner.className = 'message-inner';
+
+    const avatar = document.createElement('div');
+    avatar.className = `avatar ${role}`;
+    avatar.textContent = role === 'user' ? 'B' : 'AI';
+
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content';
+
+    if (role === 'user') {
+      contentDiv.innerHTML = marked.parse(content);
+    } else {
+      contentDiv.innerHTML = content;
     }
 
-    function showWelcomeScreen() {
-      if (welcomeScreen) {
-        welcomeScreen.style.display = 'flex';
-      }
-    }
+    messageInner.appendChild(avatar);
+    messageInner.appendChild(contentDiv);
+    message.appendChild(messageInner);
+    chatBox.appendChild(message);
+    chatBox.scrollTop = chatBox.scrollHeight;
+    return contentDiv;
+  }
 
-    function createMessage(role, content) {
-      hideWelcomeScreen();
-      
-      const message = document.createElement('div');
-      message.className = `message ${role}`;
-      
-      const messageInner = document.createElement('div');
-      messageInner.className = 'message-inner';
-      
-      const avatar = document.createElement('div');
-      avatar.className = `avatar ${role}`;
-      avatar.textContent = role === 'user' ? 'B' : 'AI';
-      
-      const contentDiv = document.createElement('div');
-      contentDiv.className = 'message-content';
-      
-      if (role === 'user') {
-        contentDiv.innerHTML = marked.parse(content);
-      } else {
-        contentDiv.innerHTML = content;
-      }
-      
-      messageInner.appendChild(avatar);
-      messageInner.appendChild(contentDiv);
-      message.appendChild(messageInner);
-      chatBox.appendChild(message);
-      chatBox.scrollTop = chatBox.scrollHeight;
-      return contentDiv;
-    }
+  function showTypingIndicator() {
+    hideWelcomeScreen();
 
-    function showTypingIndicator() {
-      hideWelcomeScreen();
-      
-      const message = document.createElement('div');
-      message.className = 'message bot';
-      message.id = 'typing-message';
-      
-      const messageInner = document.createElement('div');
-      messageInner.className = 'message-inner';
-      
-      const avatar = document.createElement('div');
-      avatar.className = 'avatar bot';
-      avatar.textContent = 'AI';
-      
-      const contentDiv = document.createElement('div');
-      contentDiv.className = 'message-content';
-      contentDiv.innerHTML = '<div class="typing-container"><div class="typing-indicator"></div><div class="typing-indicator"></div><div class="typing-indicator"></div></div>';
-      
-      messageInner.appendChild(avatar);
-      messageInner.appendChild(contentDiv);
-      message.appendChild(messageInner);
-      chatBox.appendChild(message);
-      chatBox.scrollTop = chatBox.scrollHeight;
-      return message;
-    }
+    const message = document.createElement('div');
+    message.className = 'message bot';
+    message.id = 'typing-message';
 
-    function useExample(text) {
-      promptInput.value = text;
-      promptInput.style.height = 'auto';
-      promptInput.style.height = Math.min(promptInput.scrollHeight, 200) + 'px';
-      sendBtn.disabled = false;
-      promptInput.focus();
-    }
+    const messageInner = document.createElement('div');
+    messageInner.className = 'message-inner';
 
-    function clearChat() {
-      chatBox.innerHTML = '';
-      showWelcomeScreen();
-      promptInput.value = '';
-      promptInput.style.height = 'auto';
-      sendBtn.disabled = true;
-      isTyping = false;
-    }
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar bot';
+    avatar.textContent = 'AI';
 
-    async function sendMessage() {
-      const prompt = promptInput.value.trim();
-      if (!prompt || isTyping) return;
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content';
+    contentDiv.innerHTML = '<div class="typing-container"><div class="typing-indicator"></div><div class="typing-indicator"></div><div class="typing-indicator"></div></div>';
 
-      isTyping = true;
-      sendBtn.disabled = true;
+    messageInner.appendChild(avatar);
+    messageInner.appendChild(contentDiv);
+    message.appendChild(messageInner);
+    chatBox.appendChild(message);
+    chatBox.scrollTop = chatBox.scrollHeight;
+    return message;
+  }
 
-      // Show user message
-      createMessage('user', prompt);
+  function useExample(text) {
+    promptInput.value = text;
+    promptInput.style.height = 'auto';
+    promptInput.style.height = Math.min(promptInput.scrollHeight, 200) + 'px';
+    sendBtn.disabled = false;
+    promptInput.focus();
+  }
 
-      // Show typing indicator
-      const typingIndicator = showTypingIndicator();
+  function clearChat() {
+    chatBox.innerHTML = '';
+    showWelcomeScreen();
+    promptInput.value = '';
+    promptInput.style.height = 'auto';
+    sendBtn.disabled = true;
+    isTyping = false;
+  }
 
-      // Reset input
-      promptInput.value = "";
-      promptInput.style.height = 'auto';
+  async function sendMessage() {
+    const prompt = promptInput.value.trim();
+    if (!prompt || isTyping) return;
 
-      try {
-        // Remove typing indicator and create bot message
-        typingIndicator.remove();
-        const botMsg = createMessage('bot', '');
-        
-        // Fetch streaming response
-        const response = await fetch(apiUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            prompt: prompt,
-            max_new_tokens: 1024
-          })
-        });
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let fullResponse = '';
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          
-          const text = decoder.decode(value);
-          fullResponse += text;
-          
-          // Update with parsed markdown
-          botMsg.innerHTML = marked.parse(fullResponse);
-          chatBox.scrollTop = chatBox.scrollHeight;
-          
-          // Highlight code blocks
-          document.querySelectorAll('pre code').forEach(hljs.highlightElement);
-        }
-      } catch (error) {
-        const errorMsg = createMessage('bot', '**Lỗi:** Không thể kết nối với máy chủ. Vui lòng thử lại sau.');
-        console.error(error);
-      } finally {
-        isTyping = false;
-        sendBtn.disabled = !promptInput.value.trim();
-      }
-    }
-
-    sendBtn.addEventListener("click", sendMessage);
-
-    // Handle Enter key
-    promptInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
-      }
-    });
-
-    // Initial setup
+    isTyping = true;
     sendBtn.disabled = true;
 
-    // Add some nice entrance animations
-    document.addEventListener('DOMContentLoaded', function() {
-      setTimeout(() => {
-        document.body.style.opacity = '1';
-      }, 100);
-    });
-  </script>
+    createMessage('user', prompt);
+    const typingIndicator = showTypingIndicator();
+
+    promptInput.value = "";
+    promptInput.style.height = 'auto';
+
+    try {
+      typingIndicator.remove();
+      const botMsg = createMessage('bot', '');
+
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: prompt, max_new_tokens: 1024 })
+      });
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullResponse = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const text = decoder.decode(value);
+        const sanitizedText = text.replace(/<\|.*?\|>/g, ''); // loại bỏ token đặc biệt
+        fullResponse += sanitizedText;
+
+        botMsg.innerHTML = marked.parse(fullResponse);
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        document.querySelectorAll('pre code').forEach(hljs.highlightElement);
+      }
+    } catch (error) {
+      createMessage('bot', '**Lỗi:** Không thể kết nối với máy chủ. Vui lòng thử lại sau.');
+      console.error(error);
+    } finally {
+      isTyping = false;
+      sendBtn.disabled = !promptInput.value.trim();
+    }
+  }
+
+  sendBtn.addEventListener("click", sendMessage);
+
+  promptInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  sendBtn.disabled = true;
+
+  document.addEventListener('DOMContentLoaded', function () {
+    setTimeout(() => {
+      document.body.style.opacity = '1';
+    }, 100);
+  });
+</script>
+
 </body>
 </html>
