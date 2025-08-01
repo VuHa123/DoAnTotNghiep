@@ -69,6 +69,7 @@ class ChatResponse(BaseModel):
     confidence: float = 0.0
     suggestion: str = ""
     knowledge: list = []  # Thêm trường knowledge để trả về các đoạn semantic search
+    knowledge_similarity_scores: list = []  # Thêm trường để trả về độ tương đồng của knowledge
 
 class EmergencyRequest(BaseModel):
     user_id: str
@@ -115,15 +116,40 @@ async def handle_chat(req: ChatRequest):
     """
     try:
         user_message = req.user_input
+        # Debug: Log received history
+        logger.info(f"[chat] 📨 Received history: {req.history}")
+        logger.info(f"[chat] 📨 Current user input: {user_message}")
+        logger.info(f"[chat] 📨 History length: {len(req.history)}")
+        logger.info(f"[chat] 📨 History type: {type(req.history)}")
+        
+        # Validate history - should not contain current user input
+        if req.history and user_message in req.history:
+            logger.warning(f"[chat] ⚠️ History contains current user input! Filtering out...")
+            # Remove current user input from history if it exists
+            req.history = [msg for msg in req.history if msg != user_message]
+            logger.info(f"[chat] 📨 Filtered history: {req.history}")
+        
+        # Log history for debugging
+        logger.info(f"[chat] 📨 History contains {len(req.history)} user messages")
+        if req.history:
+            logger.info(f"[chat] 📨 History messages: {[msg[:50] + '...' if len(msg) > 50 else msg for msg in req.history]}")
+        
         # 1. Gating router - đánh giá rủi ro
         risk_level, confidence = router.route(user_message)
         sentiment_obj = None
         mental_state_obj = None
         warning = None
-        # 2. Semantic search Qdrant - giảm top_k để tăng tốc độ
-        knowledge_chunks = indexer.query(user_message, top_k=3)
-        knowledge_texts = [chunk.get("chunk_text", "") for chunk in knowledge_chunks]
-        logger.info(f"[chat] 📚 Tìm được {len(knowledge_texts)} đoạn knowledge")
+        # 2. Semantic search Qdrant với lọc theo độ tương đồng
+        knowledge_chunks = indexer.query(user_message, top_k=5)  # Lấy nhiều hơn để lọc
+        # Lọc knowledge theo độ tương đồng > 80%
+        filtered_chunks = indexer.filter_knowledge_by_similarity(
+            user_input=user_message, 
+            knowledge_chunks=knowledge_chunks, 
+            similarity_threshold=0.8
+        )
+        knowledge_texts = [chunk.get("chunk_text", "") for chunk in filtered_chunks]
+        knowledge_similarity_scores = [chunk.get("similarity_score", 0.0) for chunk in filtered_chunks]
+        logger.info(f"[chat] 📚 Tìm được {len(knowledge_chunks)} đoạn knowledge, lọc còn {len(knowledge_texts)} đoạn có độ tương đồng > 80%")
         # 3. Build prompt object cho LLM
         if risk_level == "normal":
             prompt_obj = {
@@ -174,11 +200,14 @@ async def handle_chat(req: ChatRequest):
                 }
             }
         # 4. Build prompt từ context (luôn luôn build đủ context)
+        logger.info(f"[chat] 🔧 Building prompt from object: {json.dumps(prompt_obj, ensure_ascii=False)[:200]}...")
         try:
             prompt = build_prompt_from_object(prompt_obj)
+            logger.info(f"[chat] 🤖 Prompt after Gemini processing: {prompt[:200]}...")
         except Exception as e:
             logger.warning(f"Prompt builder failed, using fallback: {e}")
             prompt = json.dumps(prompt_obj, ensure_ascii=False)
+            logger.info(f"[chat] ⚠️ Using fallback prompt: {prompt[:200]}...")
         # 5. Gọi model server custom
         reply = call_gemini_llm(prompt)
         # 6. Xử lý warning nếu cần (ngoài emergency)
@@ -194,7 +223,8 @@ async def handle_chat(req: ChatRequest):
             emotion_label=getattr(sentiment_obj, 'sentiment', '') if sentiment_obj else '',
             mental_state=getattr(mental_state_obj, 'mental_state', '') if mental_state_obj else '',
             suggestion=warning or '',
-            knowledge=knowledge_texts
+            knowledge=knowledge_texts,
+            knowledge_similarity_scores=knowledge_similarity_scores
         )
     except Exception as e:
         logger.error(f"Error in chat endpoint: {e}")

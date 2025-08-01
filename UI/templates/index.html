@@ -625,7 +625,8 @@
     const welcomeScreen = document.getElementById("welcome-screen");
 
     let isTyping = false;
-    let chatHistory = [];
+    let isProcessing = false; // Track if request is being processed
+    let chatHistory = []; // Will store only user messages for context
     let sessionId = "session_" + Date.now();
 
     // Configure marked
@@ -730,15 +731,22 @@
       promptInput.style.height = 'auto';
       sendBtn.disabled = true;
       isTyping = false;
-      chatHistory = [];
+      chatHistory = []; // Clear user message history
       sessionId = "session_" + Date.now();
     }
 
     async function sendMessage() {
       const prompt = promptInput.value.trim();
-      if (!prompt || isTyping) return;
+      if (!prompt || isTyping || isProcessing) return;
+
+      // Prevent multiple requests
+      if (isTyping || isProcessing) {
+        console.log("Already processing, ignoring request");
+        return;
+      }
 
       isTyping = true;
+      isProcessing = true;
       sendBtn.disabled = true;
 
       // Show user message
@@ -752,18 +760,25 @@
       promptInput.style.height = 'auto';
 
       try {
-        // Add user message to history
-        chatHistory.push(prompt);
+        // Debug: Log what we're sending
+        console.log("Current chatHistory before sending:", chatHistory);
+        console.log("Current prompt:", prompt);
         
-        // Fetch response from API gateway
+        // Only send user messages as history (not bot responses)
+        // Don't include the current user message in history
+        const requestBody = {
+          user_input: prompt,
+          history: chatHistory.slice(-5), // Keep last 5 user messages for context
+          session_id: sessionId
+        };
+        console.log("Sending request with history:", requestBody.history);
+        console.log("Full request body:", requestBody);
+        
+        // Fetch response from API gateway (send history BEFORE adding current message)
         const response = await fetch(apiUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_input: prompt,
-            history: chatHistory.slice(-5), // Keep last 5 messages for context
-            session_id: sessionId
-          })
+          body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) {
@@ -775,8 +790,9 @@
         // Debug: Log the raw response
         console.log("Raw bot response:", data.bot_response);
         
-        // Add bot response to history
-        chatHistory.push(data.bot_response);
+        // Add only user message to history AFTER getting response
+        // Don't add bot response to history
+        chatHistory.push(prompt);
         
         // Build response content with additional info
         let responseContent = data.bot_response;
@@ -827,6 +843,7 @@
         console.error('Error:', error);
       } finally {
         isTyping = false;
+        isProcessing = false;
         sendBtn.disabled = !promptInput.value.trim();
       }
     }
@@ -837,7 +854,9 @@
     promptInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
-        sendMessage();
+        if (!isTyping && !isProcessing) { // Only send if not already processing
+          sendMessage();
+        }
       }
     });
 
