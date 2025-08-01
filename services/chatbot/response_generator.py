@@ -4,14 +4,19 @@ import logging
 import time
 import re
 import unicodedata
+import sys
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+
+# Thêm đường dẫn để import từ llmserver
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'llmserver'))
+from llmserver.config import API_LLM
 
 # Thiết lập logging
 # logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-CUSTOM_LLM_API_URL = "https://lists-cos-irc-dow.trycloudflare.com/model/generate/"
+CUSTOM_LLM_API_URL = API_LLM
 
 # Tạo session với connection pooling và retry
 session = requests.Session()

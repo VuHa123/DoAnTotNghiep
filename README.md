@@ -120,8 +120,7 @@ Hệ thống sử dụng **LLM Server** riêng biệt để serve fine-tuned Men
 - **Port**: 8000
 - **Chức năng**: Main API với tích hợp đầy đủ các services
 - **Endpoints**:
-  - `POST /api/v1/chat` - Main chat endpoint (từ chatbot_api.py)
-  - `POST /chat` - Legacy chat endpoint
+  - `POST /chat` - Main chat endpoint (từ api.py)
   - `GET /health` - Health check
   - `GET /api-stats` - API statistics
   - `POST /emergency` - Emergency handling

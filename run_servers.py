@@ -148,7 +148,7 @@ class ServerManager:
 
 💡 Test endpoints:
 - Health check: curl http://localhost:8000/health
-- Chat: curl -X POST http://localhost:8000/api/v1/chat -H "Content-Type: application/json" -d '{"message": "Hello"}'
+- Chat: curl -X POST http://localhost:8000/chat -H "Content-Type: application/json" -d '{"user_input": "Hello", "history": [], "session_id": "test"}'
 
 Press Ctrl+C to stop all servers
             """)

@@ -19,7 +19,6 @@ from services.setiment_analysis.analyzer import detect_sentiment_label
 from services.chatbot.response_generator import call_gemini_llm
 from services.emergency_handler.handler import EmergencyHandler
 from services.context_tracking.tracker import update_context
-from api_gateway.chatbot_api import router as chatbot_router
 from services.common_schemas import SentimentOutput, MentalStateOutput
 from services.gating_router.prompt_builder import build_prompt_from_object
 from services.semantic_search import SemanticIndexer
@@ -42,8 +41,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include chatbot router
-app.include_router(chatbot_router, prefix="/api/v1", tags=["chatbot"])
 
 # Middleware logging
 @app.middleware("http")
