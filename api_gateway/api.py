@@ -159,7 +159,7 @@ async def handle_chat(req: ChatRequest):
         knowledge_chunks = indexer.query_with_reranker(
             query=user_message, 
             top_k=5, 
-            relevance_threshold=0.6
+            relevance_threshold=0.7
         )
         
         # Lấy thông tin từ kết quả re-ranked
@@ -293,7 +293,7 @@ async def semantic_search(req: SemanticSearchRequest):
         results = indexer.query_with_reranker(
             query=req.query, 
             top_k=req.top_k, 
-            relevance_threshold=0.5
+            relevance_threshold=0.7
         )
         
         logger.info(f"[semantic_search] ✅ Found {len(results)} relevant results")

@@ -219,7 +219,7 @@ class SemanticIndexer:
 
     def query_with_reranker(self, query: str, top_k: int = 5, relevance_threshold: float = 0.5) -> List[Dict[str, Any]]:
         """
-        Query với re-ranker để có kết quả chính xác hơn
+        Query với re-ranker - chỉ truy vấn 1 lần, không fallback
         Trả về rỗng nếu không tìm được thông tin phù hợp
         
         Args:
@@ -234,7 +234,7 @@ class SemanticIndexer:
             print("⚠️ Cannot query - Qdrant not connected")
             return []
         
-        # Lấy kết quả ban đầu từ vector search (KHÔNG áp dụng re-ranker)
+        # Lấy kết quả ban đầu từ vector search
         initial_top_k = top_k * 3  # Lấy nhiều hơn để re-rank
         
         query_emb = self.embed_texts([query])[0]
@@ -255,7 +255,7 @@ class SemanticIndexer:
             print("⚠️ No initial results found from vector search")
             return []
         
-        # Áp dụng re-ranker nếu có
+        # Chỉ áp dụng re-ranker nếu có
         if self.use_reranker and self.reranker:
             print(f"🔄 Applying re-ranker to {len(initial_results)} initial results...")
             
@@ -264,7 +264,7 @@ class SemanticIndexer:
             else:
                 reranked_results = self.reranker.rerank_passages(query, initial_results, top_k)
             
-            # Lọc theo relevance threshold - CHỈ trả về kết quả thực sự liên quan
+            # Lọc theo relevance threshold
             filtered_results = []
             for reranked_passage in reranked_results:
                 if reranked_passage.rerank_score >= relevance_threshold:
@@ -274,24 +274,8 @@ class SemanticIndexer:
                     filtered_results.append(result_dict)
             
             print(f"✅ Re-ranker filtered to {len(filtered_results)} relevant results")
-            
-            # Nếu không có kết quả nào đạt threshold, trả về rỗng
-            if not filtered_results:
-                print("⚠️ No results meet relevance threshold, returning empty knowledge")
-                return []
-            
             return filtered_results
         else:
-            # Fallback: kiểm tra điểm vector similarity
-            print("⚠️ Re-ranker not available, checking vector similarity")
-            high_quality_results = []
-            for result in initial_results[:top_k]:
-                score = result.get("score", 0)
-                if score >= 0.7:  # Chỉ lấy kết quả có điểm cao
-                    high_quality_results.append(result)
-            
-            if not high_quality_results:
-                print("⚠️ No high-quality results found, returning empty knowledge")
-                return []
-            
-            return high_quality_results 
+            # Không có re-ranker thì trả về rỗng
+            print("⚠️ Re-ranker not available, returning empty")
+            return [] 

@@ -9,8 +9,13 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 # Thêm đường dẫn để import từ llmserver
+import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'llmserver'))
-from llmserver.config import API_LLM
+try:
+    from llmserver.config import API_LLM
+except ImportError:
+    # Fallback nếu không import được
+    API_LLM = "http://localhost:8001/model/generate/"
 
 # Thiết lập logging
 # logging.basicConfig(level=logging.INFO)
@@ -36,6 +41,11 @@ HTML_TAG_PATTERN = re.compile(r"<[^<>]*?/?>\s*", flags=re.DOTALL | re.MULTILINE)
 INVISIBLE_CHARS_PATTERN = re.compile(r"[\u200b\u200c\u200d\u200e\u200f\ufeff\ufffe\uffff\u00a0\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\u0000-\u001f\u007f-\u009f]")
 WHITESPACE_PATTERN = re.compile(r'\s+')
 NEWLINE_PATTERN = re.compile(r'\n\s*\n')
+# Thêm patterns mới để xử lý ký tự đặc biệt và lặp lại
+REPEATED_CHARS_PATTERN = re.compile(r'(.)\1{3,}')  # Loại bỏ ký tự lặp lại quá 3 lần
+SPECIAL_SYMBOLS_PATTERN = re.compile(r'[◆◇■□●○▲△▽▼♠♣♥♦★☆♤♧♡♢♪♫♬♩♭♮♯]')
+CONTROL_CHARS_PATTERN = re.compile(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]')
+UNICODE_EMOJI_PATTERN = re.compile(r'[\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF\U0001F1E0-\U0001F1FF\U00002600-\U000027BF]')
 
 def clean_response(text: str) -> str:
     """
@@ -54,7 +64,17 @@ def clean_response(text: str) -> str:
     # 3. Loại bỏ các ký tự Unicode vô hình (sử dụng compiled pattern)
     text = INVISIBLE_CHARS_PATTERN.sub("", text)
     
-    # 4. Loại các từ đặc biệt bị sót lại (gộp pattern)
+    # 4. Loại bỏ các ký tự điều khiển
+    text = CONTROL_CHARS_PATTERN.sub("", text)
+    
+    # 5. Loại bỏ các ký tự đặc biệt và emoji không mong muốn
+    text = SPECIAL_SYMBOLS_PATTERN.sub("", text)
+    text = UNICODE_EMOJI_PATTERN.sub("", text)
+    
+    # 6. Loại bỏ ký tự lặp lại quá 3 lần (ví dụ: aaaa -> aaa)
+    text = REPEATED_CHARS_PATTERN.sub(r'\1\1\1', text)
+    
+    # 7. Loại các từ đặc biệt bị sót lại (gộp pattern)
     blacklist_words = [
         "closuresnippet", "startoftext", "endoftext", "endofprompt", 
         "startofresponse", "assistant", "user", "system", "human",
@@ -62,21 +82,22 @@ def clean_response(text: str) -> str:
         "fim_prefix", "fim_middle", "fim_suffix", "eot_id", "start_header_id",
         "end_header_id", "begin", "end", "instruction", "User", "Assistant",
         "fim", "fim_user", "fim_middle", "fim_end", "startofprompt", "endofprompt",
-        "canchan", "response"
+        "canchan", "response", "prompt", "input", "output", "generate",
+        "model", "llm", "ai", "bot", "chatbot", "assistant", "user"
     ]
     
     # Tạo pattern với word boundaries và case insensitive
     pattern = r"\b(" + "|".join(re.escape(w) for w in blacklist_words) + r")\b"
     text = re.sub(pattern, "", text, flags=re.IGNORECASE)
     
-    # 5. Loại bỏ các ký tự lạ còn sót lại (non-printable characters)
+    # 8. Loại bỏ các ký tự lạ còn sót lại (non-printable characters)
     text = ''.join(char for char in text if unicodedata.category(char)[0] != 'C' or char in '\n\t\r ')
     
-    # 6. Chuẩn hóa khoảng trắng (sử dụng compiled patterns)
+    # 9. Chuẩn hóa khoảng trắng (sử dụng compiled patterns)
     text = WHITESPACE_PATTERN.sub(' ', text)
     text = NEWLINE_PATTERN.sub('\n', text)
     
-    # 7. Xóa dòng trống dư thừa và trim
+    # 10. Xóa dòng trống dư thừa và trim
     lines = []
     for line in text.splitlines():
         line = line.strip()
@@ -85,9 +106,31 @@ def clean_response(text: str) -> str:
     
     result = "\n".join(lines).strip()
     
-    # 8. Final cleanup - loại bỏ bất kỳ token nào còn sót lại
+    # 11. Loại bỏ nội dung lặp lại (cùng một câu xuất hiện nhiều lần)
+    sentences = result.split('.')
+    unique_sentences = []
+    seen_sentences = set()
+    
+    for sentence in sentences:
+        sentence = sentence.strip()
+        if sentence and len(sentence) > 10:  # Chỉ xử lý câu có độ dài > 10 ký tự
+            # Chuẩn hóa câu để so sánh (loại bỏ dấu câu, chuyển về lowercase)
+            normalized = re.sub(r'[^\w\s]', '', sentence.lower()).strip()
+            if normalized not in seen_sentences:
+                seen_sentences.add(normalized)
+                unique_sentences.append(sentence)
+        elif sentence:
+            unique_sentences.append(sentence)
+    
+    result = '. '.join(unique_sentences).strip()
+    
+    # 12. Final cleanup - loại bỏ bất kỳ token nào còn sót lại
     result = SPECIAL_TOKEN_PATTERN.sub('', result)
     result = HTML_TAG_PATTERN.sub('', result)
+    
+    # 13. Đảm bảo kết quả không rỗng
+    if not result.strip():
+        return "Xin lỗi, tôi không thể tạo ra phản hồi phù hợp. Vui lòng thử lại."
     
     return result
 
@@ -106,15 +149,46 @@ def validate_cleaned_text(text: str) -> bool:
         r'<\|[^|]*\|>',       # Special tokens
         r'\\b(assistant|user|system)\\b',  # Role tokens
         r'[\u200b-\u200f]',   # Zero-width chars
+        r'[◆◇■□●○▲△▽▼♠♣♥♦★☆♤♧♡♢♪♫♬♩♭♮♯]',  # Special symbols
+        r'(.)\1{4,}',         # Repeated chars more than 4 times
+        r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]',  # Control chars
     ]
     
     for pattern in unwanted_patterns:
         if re.search(pattern, text, re.IGNORECASE):
             return False
     
+    # Kiểm tra độ dài tối thiểu
+    if len(text.strip()) < 5:
+        return False
+    
+    # Kiểm tra có chứa ít nhất một ký tự chữ cái
+    if not re.search(r'[a-zA-ZÀ-ỹ]', text):
+        return False
+    
     return True
 
 
+def final_cleanup(text: str) -> str:
+    """
+    Hàm cleanup cuối cùng để đảm bảo response sạch hoàn toàn
+    """
+    if not isinstance(text, str):
+        return "Xin lỗi, tôi không thể tạo ra phản hồi phù hợp. Vui lòng thử lại."
+    
+    # Áp dụng clean_response
+    cleaned = clean_response(text)
+    
+    # Kiểm tra chất lượng
+    if not validate_cleaned_text(cleaned):
+        # Nếu vẫn không đạt chất lượng, thử clean thêm lần nữa
+        cleaned = clean_response(cleaned)
+        
+        # Nếu vẫn không đạt, trả về message mặc định
+        if not validate_cleaned_text(cleaned):
+            return "Xin lỗi, tôi không thể tạo ra phản hồi phù hợp. Vui lòng thử lại."
+    
+    return cleaned
 
 
 # Uncomment để test
@@ -214,28 +288,72 @@ def extract_main_response(text: str) -> str:
     if not isinstance(text, str):
         return ""
     
+    # Trước tiên, làm sạch text
+    text = clean_response(text)
+    
     # Pattern 1: Tìm phần trong dấu ngoặc kép sau "Chào bạn"
     chao_ban_quote_pattern = re.compile(r'Chào bạn[^"]*"([^"]*)"', re.IGNORECASE | re.DOTALL)
     match = chao_ban_quote_pattern.search(text)
     
     if match:
-        return match.group(1).strip()
+        result = match.group(1).strip()
+        if result and len(result) > 10:
+            return result
     
     # Pattern 2: Tìm phần từ "Chào bạn" đến hết (không có dấu ngoặc kép)
-    chao_ban_pattern = re.compile(r'(Chào bạn.*?)(?=\n\n|\nTôi hy vọng|\nNếu bạn|$)', re.IGNORECASE | re.DOTALL)
+    chao_ban_pattern = re.compile(r'(Chào bạn.*?)(?=\n\n|\nHy vọng những gợi ý này|\nTôi hy vọng những gợi ý này|\nNếu bạn cần thêm hỗ trợ|\nHãy cho tôi biết|\nVui lòng cho tôi biết|\nCảm ơn bạn đã chia sẻ|\nXin lỗi vì|\nĐừng ngần ngại liên hệ|$)', re.IGNORECASE | re.DOTALL)
     match = chao_ban_pattern.search(text)
     
     if match:
-        return match.group(1).strip()
+        result = match.group(1).strip()
+        if result and len(result) > 10:
+            return result
     
     # Pattern 3: Tìm phần trong dấu ngoặc kép đầu tiên
     quote_pattern = re.compile(r'"([^"]*)"', re.DOTALL)
     quote_match = quote_pattern.search(text)
     
     if quote_match:
-        return quote_match.group(1).strip()
+        result = quote_match.group(1).strip()
+        if result and len(result) > 10:
+            return result
     
     # Pattern 4: Nếu không có pattern nào khớp, trả về text đã clean
-    cleaned_text = clean_response(text)
+    # Xử lý format: giữ lại "Hy vọng những gợi ý này..." và loại bỏ phần sau
+    lines = text.split('\n')
+    main_lines = []
     
-    return cleaned_text
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+            
+        # Kiểm tra nếu có câu "Hy vọng những gợi ý này..."
+        if any(keyword in line.lower() for keyword in [
+            'hy vọng những gợi ý này', 'tôi hy vọng những gợi ý này'
+        ]):
+            # Loại bỏ phần "Nếu bạn cần thêm hỗ trợ..." khỏi câu này
+            clean_line = re.sub(r'\.\s*Nếu bạn cần thêm hỗ trợ.*$', '.', line)
+            clean_line = re.sub(r'\.\s*Đừng ngại liên hệ.*$', '.', clean_line)
+            main_lines.append(clean_line)
+            break  # Dừng lại hoàn toàn, không thêm câu nào nữa
+            
+        # Loại bỏ các câu không mong muốn khác
+        if any(keyword in line.lower() for keyword in [
+            'hãy cho tôi biết', 'vui lòng cho tôi biết',
+            'cảm ơn bạn đã chia sẻ', 'xin lỗi vì', 'đừng ngần ngại liên hệ',
+            'nếu bạn cần thêm hỗ trợ', 'đừng ngại liên hệ',
+            'lỗi', 'error', 'assistant', 'user', 'system'
+        ]):
+            continue
+            
+        # Thêm các câu khác
+        main_lines.append(line)
+    
+    result = '\n'.join(main_lines).strip()
+    
+    # Nếu kết quả vẫn rỗng hoặc quá ngắn, trả về text gốc đã clean
+    if not result or len(result) < 10:
+        return text
+    
+    return result
