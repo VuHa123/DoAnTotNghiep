@@ -24,7 +24,7 @@ class CrossEncoderReranker:
     def __init__(self, 
                  model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2",
                  device: str = None,
-                 relevance_threshold: float = 0.5):
+                 relevance_threshold: float = 0.7):
         """
         Args:
             model_name: Tên model cross-encoder
@@ -79,13 +79,16 @@ class CrossEncoderReranker:
             
             # Chấm điểm bằng Cross-Encoder
             print(f"🔄 Re-ranking {len(query_passage_pairs)} passages...")
-            scores = self.model.predict(query_passage_pairs)
+            raw_scores = self.model.predict(query_passage_pairs)
             
             # Tạo RerankedPassage objects
             reranked_passages = []
             for i, passage in enumerate(passages):
-                if i < len(scores):
-                    rerank_score = float(scores[i])
+                if i < len(raw_scores):
+                    raw_score = float(raw_scores[i])
+                    # Chuẩn hóa điểm số về khoảng 0-1
+                    import math
+                    rerank_score = 1 / (1 + math.exp(-raw_score))
                     original_score = passage.get("score", 0.0)
                     
                     reranked_passage = RerankedPassage(
@@ -104,13 +107,15 @@ class CrossEncoderReranker:
             # Lọc chỉ lấy passages có liên quan
             relevant_passages = [p for p in reranked_passages if p.is_relevant]
             
-            # Nếu không có passages nào đạt threshold, lấy top_k passages có điểm cao nhất
-            if not relevant_passages:
-                print(f"⚠️ No passages meet relevance threshold {self.relevance_threshold}, using top {top_k} by score")
-                final_results = reranked_passages[:top_k]
+            # Thêm kiểm tra chất lượng dựa trên từ khóa
+            quality_filtered_passages = self._filter_by_keyword_relevance(query, relevant_passages)
+            
+            if quality_filtered_passages:
+                final_results = quality_filtered_passages[:top_k]
+                print(f"✅ Using {len(final_results)} quality-filtered passages")
             else:
-                # Giới hạn số lượng kết quả
-                final_results = relevant_passages[:top_k]
+                print(f"⚠️ No passages pass keyword quality check, returning empty")
+                final_results = []
             
             print(f"✅ Re-ranking completed:")
             print(f"   - Original passages: {len(passages)}")
@@ -119,13 +124,13 @@ class CrossEncoderReranker:
             
             # Log điểm số của các passages được chọn
             for i, passage in enumerate(final_results):
-                print(f"   {i+1}. Score: {passage.rerank_score:.3f} | Relevant: {passage.is_relevant}")
+                print(f"   {i+1}. Score: {passage.rerank_score:.3f} (normalized) | Relevant: {passage.is_relevant}")
             
             return final_results
             
         except Exception as e:
             print(f"❌ Error during re-ranking: {e}")
-            return self._create_fallback_results(passages, top_k)
+            return []
     
     def _create_fallback_results(self, passages: List[Dict[str, Any]], top_k: int) -> List[RerankedPassage]:
         """Tạo kết quả fallback khi re-ranker không hoạt động"""
@@ -151,14 +156,21 @@ class CrossEncoderReranker:
             passage: Đoạn văn cần chấm điểm
             
         Returns:
-            Điểm relevance (0-1)
+            Điểm relevance (0-1) sau khi chuẩn hóa
         """
         if self.model is None:
             return 0.0
         
         try:
             score = self.model.predict([[query, passage]])
-            return float(score[0])
+            raw_score = float(score[0])
+            
+            # Chuẩn hóa điểm số về khoảng 0-1
+            # Sử dụng sigmoid function để chuẩn hóa
+            import math
+            normalized_score = 1 / (1 + math.exp(-raw_score))
+            
+            return normalized_score
         except Exception as e:
             print(f"❌ Error calculating relevance score: {e}")
             return 0.0
@@ -202,6 +214,49 @@ class CrossEncoderReranker:
                 print(f"❌ Passage filtered out - Score: {relevance_score:.3f} < {min_relevance}")
         
         return filtered_passages
+    
+    def _filter_by_keyword_relevance(self, query: str, passages: List[RerankedPassage]) -> List[RerankedPassage]:
+        """
+        Lọc passages dựa trên từ khóa để đảm bảo chất lượng
+        """
+        if not passages:
+            return []
+        
+        # Tạo từ khóa từ query
+        query_lower = query.lower()
+        query_words = set(query_lower.split())
+        
+        # Loại bỏ stop words
+        stop_words = {
+            'tôi', 'đang', 'cảm', 'thấy', 'và', 'về', 'cách', 'làm', 'thế', 'nào', 
+            'để', 'cải', 'thiện', 'mối', 'quan', 'hệ', 'với', 'người', 'khác',
+            'có', 'thể', 'giúp', 'tôi', 'không', 'là', 'một', 'trong', 'những',
+            'vấn', 'đề', 'của', 'bạn', 'là', 'gì', 'tại', 'sao', 'bạn', 'nghĩ'
+        }
+        query_keywords = query_words - stop_words
+        
+        quality_passages = []
+        
+        for passage in passages:
+            passage_text = passage.chunk_text.lower()
+            
+            # Kiểm tra xem passage có chứa từ khóa quan trọng không
+            keyword_matches = 0
+            for keyword in query_keywords:
+                if len(keyword) > 2 and keyword in passage_text:  # Chỉ xét từ khóa dài > 2 ký tự
+                    keyword_matches += 1
+            
+            # Tính tỷ lệ từ khóa khớp
+            keyword_ratio = keyword_matches / len(query_keywords) if query_keywords else 0
+            
+            # Chỉ giữ lại passages có ít nhất 30% từ khóa khớp
+            if keyword_ratio >= 0.3:
+                quality_passages.append(passage)
+                print(f"✅ Passage passed keyword check: {keyword_ratio:.2f} keyword match")
+            else:
+                print(f"❌ Passage failed keyword check: {keyword_ratio:.2f} keyword match")
+        
+        return quality_passages
 
 class HybridReranker:
     """
@@ -210,7 +265,7 @@ class HybridReranker:
     
     def __init__(self, 
                  cross_encoder_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2",
-                 relevance_threshold: float = 0.5,
+                 relevance_threshold: float = 0.7,
                  length_penalty: float = 0.1):
         """
         Args:

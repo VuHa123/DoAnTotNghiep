@@ -11,17 +11,29 @@ import time
 
 # Add parent directory to path for imports
 sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'services'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'llmserver'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'services', 'chatbot'))
 
-# from services.gating_router.router import MessageRouter
-# from services.mental_state_classifier.classifer import detect_mental_state
-# from services.setiment_analysis.analyzer import detect_sentiment_label
 import requests
 import re
-# from services.emergency_handler.handler import EmergencyHandler
-# from services.context_tracking.tracker import update_context
-# from api_gateway.chatbot_api import router as chatbot_router
-# from services.common_schemas import ChatServiceInput, ChatServiceOutput, SentimentOutput, MentalStateOutput, EmergencyOutput
-# from services.gating_router.prompt_builder import build_prompt_from_object
+
+# Import các hàm từ response_generator để tránh code duplication
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+import importlib.util
+
+# Import response_generator module
+spec = importlib.util.spec_from_file_location(
+    "response_generator", 
+    os.path.join(os.path.dirname(__file__), '..', 'services', 'chatbot', 'response_generator.py')
+)
+response_generator = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(response_generator)
+
+extract_main_response = response_generator.extract_main_response
+final_cleanup = response_generator.final_cleanup
 
 # Cấu hình logging
 logging.basicConfig(level=logging.INFO)
@@ -37,25 +49,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# # Include chatbot router
-# app.include_router(chatbot_router, prefix="/api/v1", tags=["chatbot"])
-
-# # Middleware logging
-# @app.middleware("http")
-# async def log_requests(request: Request, call_next):
-#     start = time.time()
-#     response = await call_next(request)
-#     duration = int((time.time() - start)*1000)
-#     logging.info(f"{request.method} {request.url} {duration}ms")
-#     return response
-
-# # Khởi tạo services
-# # chatbot_service = ChatbotService()
-# emergency_handler = EmergencyHandler()
-# router = MessageRouter(model_path="models/weights/gating_router")
-
-# Schema definitions
 class ChatRequest(BaseModel):
     user_input: str
     history: Optional[List[str]] = []
@@ -73,73 +66,6 @@ class EmergencyRequest(BaseModel):
     location: Optional[str] = None
     contact: Optional[str] = None
 
-# Health check endpoint: Kiểm tra trạng thái API Gateway.
-
-# @app.get("/health")
-# async def health_check():
-#     """Health check endpoint"""
-#     try:
-#         return {
-#             "status": "healthy",
-#             "message": "Mental Health Chatbot API is running",
-#             "services": {
-#                 "chatbot": "available",
-#                 "context_tracker": "available", 
-#                 "emergency_handler": "available",
-#                 "gating_router": "available"
-#             }
-#         }
-#     except Exception as e:
-#         logger.error(f"Health check failed: {e}")
-#         raise HTTPException(status_code=500, detail="Service unavailable")
-
-# Main chat endpoint:  Nhận message từ frontend, xử lý toàn bộ luồng (gọi Gating Router, các service, Model Server...).
-def extract_main_response(text: str) -> str:
-    """
-    Trích xuất phần nội dung chính từ response của LLM, bắt đầu từ "Chào bạn..."
-    Loại bỏ các phần giải thích thêm và chỉ giữ lại phần nội dung chính.
-    """
-    if not isinstance(text, str):
-        return ""
-    
-    # Pattern 1: Tìm phần trong dấu ngoặc kép sau "Chào bạn"
-    chao_ban_quote_pattern = re.compile(r'Chào bạn[^"]*"([^"]*)"', re.IGNORECASE | re.DOTALL)
-    match = chao_ban_quote_pattern.search(text)
-    
-    if match:
-        return match.group(1).strip()
-    
-    # Pattern 2: Tìm phần từ "Chào bạn" đến hết (không có dấu ngoặc kép)
-    chao_ban_pattern = re.compile(r'(Chào bạn.*?)(?=\n\n|\nTôi hy vọng|\nNếu bạn|$)', re.IGNORECASE | re.DOTALL)
-    match = chao_ban_pattern.search(text)
-    
-    if match:
-        return match.group(1).strip()
-    
-    # Pattern 3: Tìm phần trong dấu ngoặc kép đầu tiên
-    quote_pattern = re.compile(r'"([^"]*)"', re.DOTALL)
-    quote_match = quote_pattern.search(text)
-    
-    if quote_match:
-        return quote_match.group(1).strip()
-    
-    # Pattern 4: Nếu không có pattern nào khớp, trả về text đã clean
-    # Loại bỏ các phần giải thích thêm ở cuối
-    lines = text.split('\n')
-    main_lines = []
-    for line in lines:
-        line = line.strip()
-        if line and not any(keyword in line.lower() for keyword in [
-            'tôi hy vọng', 'nếu bạn cần', 'hãy cho tôi biết', 'cảm ơn bạn'
-        ]):
-            main_lines.append(line)
-        elif line and any(keyword in line.lower() for keyword in [
-            'tôi hy vọng', 'nếu bạn cần', 'hãy cho tôi biết', 'cảm ơn bạn'
-        ]):
-            break
-    
-    result = '\n'.join(main_lines).strip()
-    return result if result else text
 
 @app.post("/chat", response_model=ChatResponse)
 async def handle_chat(req: ChatRequest):
@@ -160,9 +86,12 @@ async def handle_chat(req: ChatRequest):
         if response.status_code == 200:
             # Lấy response text từ streaming response
             raw_response = response.text
+                        
+            # Làm sạch response trước khi trích xuất
+            cleaned_response = final_cleanup(raw_response)
             
             # Trích xuất phần nội dung chính từ "Chào bạn..."
-            final_response = extract_main_response(raw_response)
+            final_response = extract_main_response(cleaned_response)
             
             return ChatResponse(
                 bot_response=final_response,
@@ -285,5 +214,5 @@ async def handle_chat(req: ChatRequest):
 #         logger.error(f"Error clearing context: {e}")
 #         raise HTTPException(status_code=500, detail=f"Failed to clear context: {str(e)}")
 
-# if __name__ == "__main__":
-#     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
