@@ -647,7 +647,7 @@
    
     processedContent = processedContent.replace(/(?<!\*)\* ([^*\n]+)/g, '\n* $1');
 
-    processedContent = processedContent.replace(/(^|\n)- ([^\n]+)/g, '\n- $2');
+    processedContent = processedContent.replace(/(?<!\n)- ([^\n]+)/g, '\n- $1');
 
     contentDiv.innerHTML = marked.parse(processedContent);
 

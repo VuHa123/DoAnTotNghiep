@@ -716,23 +716,21 @@
       const contentDiv = document.createElement('div');
       contentDiv.className = 'message-content';
       
-      // Process content for better formatting
       let processedContent = content;
-      
-      // Add paragraph breaks before titles with single * (italic) or ** (bold)
-      processedContent = processedContent.replace(/\*([^*]+):\*/g, '\n\n*$1:*');  // Single * for italic
-      processedContent = processedContent.replace(/\*\*([^*]+):\*\*/g, '\n\n**$1:**');  // Double ** for bold
-      
-      // Add line breaks before numbered list items (pattern: 1. Item, 2. Item, etc.)
+
+      // ✅ Thêm ngắt đoạn trước tiêu đề **Tiêu đề:**
+      processedContent = processedContent.replace(/\*\*([^*]+):\*\*/g, '\n\n**$1:**');
+
+      // ✅ Thêm xuống dòng trước số thứ tự (1. xxx)
       processedContent = processedContent.replace(/(\d+\.\s+[^\n]+)/g, '\n$1');
-      
-      // Add line breaks before bullet list items (pattern: * Item) but not after numbered items
-      processedContent = processedContent.replace(/(?<!\d\.\s)\* ([^*\n]+)/g, '\n* $1');
-      
-      // If content doesn't contain paragraph breaks, add them after sentences
-      if (!processedContent.includes('\n\n')) {
-        processedContent = processedContent.replace(/([.!?])\s+/g, "$1\n\n");
-      }
+
+      // ✅ Thêm xuống dòng trước * bullet (tránh nhầm với **bold**)
+      processedContent = processedContent.replace(/(?<!\*)\* ([^*\n]+)/g, '\n* $1');
+
+      // ✅ Thêm xuống dòng trước - bullet
+      processedContent = processedContent.replace(/(?<!\n)- ([^\n]+)/g, '\n- $1');
+
+      // ❌ Không ép xuống dòng sau dấu chấm nữa
       
       contentDiv.innerHTML = marked.parse(processedContent);
       
