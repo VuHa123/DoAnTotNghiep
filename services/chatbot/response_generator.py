@@ -125,81 +125,85 @@ def call_gemini_llm(prompt: str) -> str:
     payload = {"prompt": prompt}
     logger.info(f"[LLM] Gọi API với prompt dài {len(prompt)} chars")
     start_time = time.time()
-    try:
-        # Giảm timeout xuống 15 giây để tăng tốc độ
-        logger.info(f"🌐 Gọi API: {CUSTOM_LLM_API_URL}")
+    # try:
+    #     # Giảm timeout xuống 15 giây để tăng tốc độ
+    #     logger.info(f"🌐 Gọi API: {CUSTOM_LLM_API_URL}")
         
-        res = session.post(CUSTOM_LLM_API_URL, headers=headers, json=payload, timeout=15)
-        duration = time.time() - start_time
+    #     res = session.post(CUSTOM_LLM_API_URL, headers=headers, json=payload, timeout=15)
+    #     duration = time.time() - start_time
         
-        logger.info(f"📥 Response status: {res.status_code} - Thời gian: {duration:.2f}s")
+    #     logger.info(f"📥 Response status: {res.status_code} - Thời gian: {duration:.2f}s")
         
-        if res.status_code == 200:
-            # Kiểm tra content-type để xử lý đúng format
-            content_type = res.headers.get('content-type', '').lower()
+    #     if res.status_code == 200:
+    #         # Kiểm tra content-type để xử lý đúng format
+    #         content_type = res.headers.get('content-type', '').lower()
             
-            if 'application/json' in content_type:
-                # Xử lý JSON response
-                try:
-                    result = res.json()
-                    logger.info(f"🔍 Parsed JSON response: {result}")
+    #         if 'application/json' in content_type:
+    #             # Xử lý JSON response
+    #             try:
+    #                 result = res.json()
+    #                 logger.info(f"🔍 Parsed JSON response: {result}")
                     
-                    if "response" in result:
-                        response_text = result["response"]
-                        logger.info(f"LLM response: {response_text}")
-                        # Làm sạch token đặc biệt nếu có
-                        response_text = clean_response(response_text)
+    #                 if "response" in result:
+    #                     response_text = result["response"]
+    #                     logger.info(f"LLM response: {response_text}")
+    #                     # Làm sạch token đặc biệt nếu có
+    #                     response_text = clean_response(response_text)
                         
-                        # Trích xuất phần nội dung chính từ "Chào bạn..."
-                        response_text = extract_main_response(response_text)
+    #                     # Trích xuất phần nội dung chính từ "Chào bạn..."
+    #                     response_text = extract_main_response(response_text)
                         
-                        # Kiểm tra chất lượng sau khi clean
-                        if not validate_cleaned_text(response_text):
-                            logger.warning("⚠️ Response vẫn còn ký tự lạ sau khi clean")
-                            # Có thể clean thêm lần nữa hoặc xử lý khác
+    #                     # Kiểm tra chất lượng sau khi clean
+    #                     if not validate_cleaned_text(response_text):
+    #                         logger.warning("⚠️ Response vẫn còn ký tự lạ sau khi clean")
+    #                         # Có thể clean thêm lần nữa hoặc xử lý khác
                         
-                        logger.info(f"✅ Custom LLM API thành công - Thời gian: {duration:.2f}s - Độ dài prompt: {len(prompt)} chars")
-                        return response_text
-                    else:
-                        logger.error(f"❌ Custom LLM API trả về response không đúng format: {result}")
-                        return "[Lỗi: Response không đúng format]"
-                except ValueError as json_error:
-                    logger.error(f"❌ Custom LLM API lỗi parse JSON: {json_error}")
-                    logger.error(f"❌ Response text: {res.text}")
-                    return f"[Lỗi: Không thể parse JSON response - {json_error}]"
-            else:
-                # Xử lý text response (như trường hợp hiện tại)
-                response_text = res.text.strip()
-                logger.info(f"📝 Text response: {response_text}")
+    #                     logger.info(f"✅ Custom LLM API thành công - Thời gian: {duration:.2f}s - Độ dài prompt: {len(prompt)} chars")
+    #                     return response_text
+    #                 else:
+    #                     logger.error(f"❌ Custom LLM API trả về response không đúng format: {result}")
+    #                     return "[Lỗi: Response không đúng format]"
+    #             except ValueError as json_error:
+    #                 logger.error(f"❌ Custom LLM API lỗi parse JSON: {json_error}")
+    #                 logger.error(f"❌ Response text: {res.text}")
+    #                 return f"[Lỗi: Không thể parse JSON response - {json_error}]"
+    #         else:
+    #             # Xử lý text response (như trường hợp hiện tại)
+    #             response_text = res.text.strip()
+    #             logger.info(f"📝 Text response: {response_text}")
                 
-                # Làm sạch token đặc biệt nếu có
-                response_text = clean_response(response_text)
+    #             # Làm sạch token đặc biệt nếu có
+    #             response_text = clean_response(response_text)
                 
-                # Trích xuất phần nội dung chính từ "Chào bạn..."
-                response_text = extract_main_response(response_text)
+    #             # Trích xuất phần nội dung chính từ "Chào bạn..."
+    #             response_text = extract_main_response(response_text)
                 
-                # Kiểm tra chất lượng sau khi clean
-                if not validate_cleaned_text(response_text):
-                    logger.warning("⚠️ Response vẫn còn ký tự lạ sau khi clean")
+    #             # Kiểm tra chất lượng sau khi clean
+    #             if not validate_cleaned_text(response_text):
+    #                 logger.warning("⚠️ Response vẫn còn ký tự lạ sau khi clean")
                 
-                logger.info(f"✅ Custom LLM API thành công (text) - Thời gian: {duration:.2f}s - Độ dài prompt: {len(prompt)} chars")
-                return response_text
-        else:
-            logger.error(f"❌ Custom LLM API lỗi HTTP {res.status_code}: {res.text}")
-            return f"[Lỗi HTTP {res.status_code}: {res.text}]"
+    #             logger.info(f"✅ Custom LLM API thành công (text) - Thời gian: {duration:.2f}s - Độ dài prompt: {len(prompt)} chars")
+    #             return response_text
+    #     else:
+    #         logger.error(f"❌ Custom LLM API lỗi HTTP {res.status_code}: {res.text}")
+    #         return f"[Lỗi HTTP {res.status_code}: {res.text}]"
             
-    except requests.exceptions.Timeout:
-        logger.error(f"❌ Custom LLM API timeout sau {time.time() - start_time:.2f}s")
-        return "[Lỗi: API timeout - vui lòng thử lại]"
-    except requests.exceptions.ConnectionError:
-        logger.error("❌ Custom LLM API lỗi kết nối")
-        return "[Lỗi: Không thể kết nối API - kiểm tra mạng]"
-    except requests.exceptions.RequestException as e:
-        logger.error(f"❌ Custom LLM API lỗi request: {e}")
-        return f"[Lỗi request: {e}]"
-    except Exception as e:
-        logger.error(f"❌ Custom LLM API lỗi không xác định: {e}")
-        return f"[Lỗi không xác định: {e}]"
+    # except requests.exceptions.Timeout:
+    #     logger.error(f"❌ Custom LLM API timeout sau {time.time() - start_time:.2f}s")
+    #     return "[Lỗi: API timeout - vui lòng thử lại]"
+    # except requests.exceptions.ConnectionError:
+    #     logger.error("❌ Custom LLM API lỗi kết nối")
+    #     return "[Lỗi: Không thể kết nối API - kiểm tra mạng]"
+    # except requests.exceptions.RequestException as e:
+    #     logger.error(f"❌ Custom LLM API lỗi request: {e}")
+    #     return f"[Lỗi request: {e}]"
+    # except Exception as e:
+    #     logger.error(f"❌ Custom LLM API lỗi không xác định: {e}")
+    #     return f"[Lỗi không xác định: {e}]"
+    res = session.post(CUSTOM_LLM_API_URL, headers=headers, json=payload, timeout=15,stream=True)
+    for chunk in res.iter_content(chunk_size=None):
+        if chunk:
+            yield chunk.decode("utf-8")
 
 
 def extract_main_response(text: str) -> str:

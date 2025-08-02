@@ -2,6 +2,7 @@ import sys
 import os
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
@@ -65,7 +66,7 @@ except Exception as e:
 # Schema definitions
 class ChatRequest(BaseModel):
     user_input: str
-    history: list[str]
+    history: list[str] = None
     session_id: Optional[str] = None
 
 class ChatResponse(BaseModel):
@@ -226,6 +227,7 @@ async def handle_chat(req: ChatRequest):
             prompt = json.dumps(prompt_obj, ensure_ascii=False)
             logger.info(f"[chat] ⚠️ Using fallback prompt: {prompt[:200]}...")
         # 5. Gọi model server custom
+        print("Prompt:", prompt)
         reply = call_gemini_llm(prompt)
         # 6. Xử lý warning nếu cần (ngoài emergency)
         if not warning:
@@ -233,16 +235,17 @@ async def handle_chat(req: ChatRequest):
                 warning = "⚠️ RỦI RO: Bạn có thể cân nhắc liên hệ chuyên gia tâm lý để được hỗ trợ tốt hơn."
             elif sentiment_obj and (getattr(sentiment_obj, 'sentiment', None) in ["3", "negative"]) and (mental_state_obj and getattr(mental_state_obj, 'mental_state', None) != "normal"):
                 warning = "💡 Gợi ý: Hãy thử các hoạt động thư giãn như thiền, tập thể dục, hoặc nói chuyện với người thân."
-        return ChatResponse(
-            bot_response=reply,
-            risk_level=risk_level,
-            confidence=confidence,
-            emotion_label=getattr(sentiment_obj, 'sentiment', '') if sentiment_obj else '',
-            mental_state=getattr(mental_state_obj, 'mental_state', '') if mental_state_obj else '',
-            suggestion=warning or '',
-            knowledge=knowledge_texts,
-            knowledge_similarity_scores=knowledge_similarity_scores
-        )
+        # return ChatResponse(
+        #     bot_response=reply,
+        #     risk_level=risk_level,
+        #     confidence=confidence,
+        #     emotion_label=getattr(sentiment_obj, 'sentiment', '') if sentiment_obj else '',
+        #     mental_state=getattr(mental_state_obj, 'mental_state', '') if mental_state_obj else '',
+        #     suggestion=warning or '',
+        #     knowledge=knowledge_texts,
+        #     knowledge_similarity_scores=knowledge_similarity_scores
+        # )
+        return StreamingResponse(reply, media_type="text/plain")
     except Exception as e:
         import traceback
         logger.error(f"Error in chat endpoint: {e}")

@@ -251,43 +251,10 @@
 
     .message-content p {
       margin-bottom: 16px;
-      line-height: 1.7;
     }
 
     .message-content p:last-child {
       margin-bottom: 0;
-    }
-
-    .message-content p:empty {
-      display: none;
-    }
-
-    .message-content ol {
-      margin: 16px 0;
-      padding-left: 24px;
-    }
-
-    .message-content ol li {
-      margin: 8px 0;
-      line-height: 1.6;
-    }
-
-    .message-content ol li:last-child {
-      margin-bottom: 4px;  /* Reduce margin after last list item */
-    }
-
-    .message-content ul {
-      margin: 16px 0;
-      padding-left: 24px;
-    }
-
-    .message-content ul li {
-      margin: 8px 0;
-      line-height: 1.6;
-    }
-
-    .message-content ul li:last-child {
-      margin-bottom: 4px;  /* Reduce margin after last list item */
     }
 
     /* Typing indicator */
@@ -447,37 +414,6 @@
       line-height: 1.6;
     }
 
-    /* Markdown elements */
-    .message-content h1, .message-content h2, .message-content h3, 
-    .message-content h4, .message-content h5, .message-content h6 {
-      margin: 20px 0 12px 0;
-      color: #2d3748;
-      font-weight: 600;
-    }
-
-    .message-content h1 { font-size: 24px; }
-    .message-content h2 { font-size: 20px; }
-    .message-content h3 { font-size: 18px; }
-    .message-content h4 { font-size: 16px; }
-    .message-content h5 { font-size: 14px; }
-    .message-content h6 { font-size: 12px; }
-
-    .message-content strong {
-      font-weight: 600;
-      color: #2d3748;
-    }
-
-    .message-content em {
-      font-style: italic;
-      color: #4a5568;
-    }
-
-    .message-content hr {
-      border: none;
-      border-top: 1px solid #e2e8f0;
-      margin: 20px 0;
-    }
-
     /* Tables */
     table {
       border-collapse: collapse;
@@ -553,7 +489,6 @@
         bottom: 6px;
       }
     }
-    
 
     @media (max-width: 480px) {
       .new-chat-btn {
@@ -650,271 +585,185 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
-  <script src="../config.js"></script>
-  <script>
-    // Sử dụng cấu hình từ config.js
-    const apiUrl = getApiUrl(API_CONFIG.CHAT_ENDPOINT);
-    const chatBox = document.getElementById("chat-box");
-    const promptInput = document.getElementById("prompt");
-    const sendBtn = document.getElementById("send-btn");
-    const welcomeScreen = document.getElementById("welcome-screen");
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+<script>
+  const apiUrl = "http://localhost:8080/chat";
+  const chatBox = document.getElementById("chat-box");
+  const promptInput = document.getElementById("prompt");
+  const sendBtn = document.getElementById("send-btn");
+  const welcomeScreen = document.getElementById("welcome-screen");
 
-    let isTyping = false;
-    let isProcessing = false; // Track if request is being processed
-    let chatHistory = []; // Will store only user messages for context
-    let sessionId = "session_" + Date.now();
+  let isTyping = false;
 
-    // Configure marked
-    marked.setOptions({
-      highlight: function(code, lang) {
-        const language = hljs.getLanguage(lang) ? lang : 'plaintext';
-        return hljs.highlight(code, { language }).value;
-      },
-      breaks: true,
-      gfm: true,
-      headerIds: false,
-      mangle: false
-    });
+  // Configure marked
+  marked.setOptions({
+    highlight: function(code, lang) {
+      const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+      return hljs.highlight(code, { language }).value;
+    },
+    breaks: true,
+    gfm: true
+  });
 
-    // Auto-resize textarea
-    promptInput.addEventListener('input', function() {
-      this.style.height = 'auto';
-      this.style.height = Math.min(this.scrollHeight, 200) + 'px';
-      
-      // Enable/disable send button
-      sendBtn.disabled = !this.value.trim() || isTyping;
-    });
+  // Auto-resize textarea
+  promptInput.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+    sendBtn.disabled = !this.value.trim() || isTyping;
+  });
 
-    function hideWelcomeScreen() {
-      if (welcomeScreen) {
-        welcomeScreen.style.display = 'none';
-      }
+  function hideWelcomeScreen() {
+    if (welcomeScreen) {
+      welcomeScreen.style.display = 'none';
+    }
+  }
+
+  function showWelcomeScreen() {
+    if (welcomeScreen) {
+      welcomeScreen.style.display = 'flex';
+    }
+  }
+
+  function createMessage(role, content) {
+    hideWelcomeScreen();
+
+    const message = document.createElement('div');
+    message.className = `message ${role}`;
+
+    const messageInner = document.createElement('div');
+    messageInner.className = 'message-inner';
+
+    const avatar = document.createElement('div');
+    avatar.className = `avatar ${role}`;
+    avatar.textContent = role === 'user' ? 'B' : 'AI';
+
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content';
+
+    if (role === 'user') {
+      contentDiv.innerHTML = marked.parse(content);
+    } else {
+      contentDiv.innerHTML = content;
     }
 
-    function showWelcomeScreen() {
-      if (welcomeScreen) {
-        welcomeScreen.style.display = 'flex';
-      }
-    }
+    messageInner.appendChild(avatar);
+    messageInner.appendChild(contentDiv);
+    message.appendChild(messageInner);
+    chatBox.appendChild(message);
+    chatBox.scrollTop = chatBox.scrollHeight;
+    return contentDiv;
+  }
 
+  function showTypingIndicator() {
+    hideWelcomeScreen();
 
+    const message = document.createElement('div');
+    message.className = 'message bot';
+    message.id = 'typing-message';
 
-    function createMessage(role, content) {
-      hideWelcomeScreen();
-      
-      const message = document.createElement('div');
-      message.className = `message ${role}`;
-      
-      const messageInner = document.createElement('div');
-      messageInner.className = 'message-inner';
-      
-      const avatar = document.createElement('div');
-      avatar.className = `avatar ${role}`;
-      avatar.textContent = role === 'user' ? 'B' : 'AI';
-      
-      const contentDiv = document.createElement('div');
-      contentDiv.className = 'message-content';
-      
-      let processedContent = content;
+    const messageInner = document.createElement('div');
+    messageInner.className = 'message-inner';
 
-      // ✅ Thêm ngắt đoạn trước tiêu đề **Tiêu đề:**
-      processedContent = processedContent.replace(/\*\*([^*]+):\*\*/g, '\n\n**$1:**');
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar bot';
+    avatar.textContent = 'AI';
 
-      // ✅ Thêm xuống dòng trước số thứ tự (1. xxx)
-      processedContent = processedContent.replace(/(\d+\.\s+[^\n]+)/g, '\n$1');
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content';
+    contentDiv.innerHTML = '<div class="typing-container"><div class="typing-indicator"></div><div class="typing-indicator"></div><div class="typing-indicator"></div></div>';
 
-      // ✅ Thêm xuống dòng trước * bullet (tránh nhầm với **bold**)
-      processedContent = processedContent.replace(/(?<!\*)\* ([^*\n]+)/g, '\n* $1');
+    messageInner.appendChild(avatar);
+    messageInner.appendChild(contentDiv);
+    message.appendChild(messageInner);
+    chatBox.appendChild(message);
+    chatBox.scrollTop = chatBox.scrollHeight;
+    return message;
+  }
 
-      // ✅ Thêm xuống dòng trước - bullet
-      processedContent = processedContent.replace(/(?<!\n)- ([^\n]+)/g, '\n- $1');
+  function useExample(text) {
+    promptInput.value = text;
+    promptInput.style.height = 'auto';
+    promptInput.style.height = Math.min(promptInput.scrollHeight, 200) + 'px';
+    sendBtn.disabled = false;
+    promptInput.focus();
+  }
 
-      // ❌ Không ép xuống dòng sau dấu chấm nữa
-      
-      contentDiv.innerHTML = marked.parse(processedContent);
-      
-      messageInner.appendChild(avatar);
-      messageInner.appendChild(contentDiv);
-      message.appendChild(messageInner);
-      chatBox.appendChild(message);
-      chatBox.scrollTop = chatBox.scrollHeight;
-      return contentDiv;
-    }
+  function clearChat() {
+    chatBox.innerHTML = '';
+    showWelcomeScreen();
+    promptInput.value = '';
+    promptInput.style.height = 'auto';
+    sendBtn.disabled = true;
+    isTyping = false;
+  }
 
-    function showTypingIndicator() {
-      hideWelcomeScreen();
-      
-      const message = document.createElement('div');
-      message.className = 'message bot';
-      message.id = 'typing-message';
-      
-      const messageInner = document.createElement('div');
-      messageInner.className = 'message-inner';
-      
-      const avatar = document.createElement('div');
-      avatar.className = 'avatar bot';
-      avatar.textContent = 'AI';
-      
-      const contentDiv = document.createElement('div');
-      contentDiv.className = 'message-content';
-      contentDiv.innerHTML = '<div class="typing-container"><div class="typing-indicator"></div><div class="typing-indicator"></div><div class="typing-indicator"></div></div>';
-      
-      messageInner.appendChild(avatar);
-      messageInner.appendChild(contentDiv);
-      message.appendChild(messageInner);
-      chatBox.appendChild(message);
-      chatBox.scrollTop = chatBox.scrollHeight;
-      return message;
-    }
+  async function sendMessage() {
+    const prompt = promptInput.value.trim();
+    if (!prompt || isTyping) return;
 
-    function useExample(text) {
-      promptInput.value = text;
-      promptInput.style.height = 'auto';
-      promptInput.style.height = Math.min(promptInput.scrollHeight, 200) + 'px';
-      sendBtn.disabled = false;
-      promptInput.focus();
-    }
-
-    function clearChat() {
-      chatBox.innerHTML = '';
-      showWelcomeScreen();
-      promptInput.value = '';
-      promptInput.style.height = 'auto';
-      sendBtn.disabled = true;
-      isTyping = false;
-      chatHistory = []; // Clear user message history
-      sessionId = "session_" + Date.now();
-    }
-
-    async function sendMessage() {
-      const prompt = promptInput.value.trim();
-      if (!prompt || isTyping || isProcessing) return;
-
-      // Prevent multiple requests
-      if (isTyping || isProcessing) {
-        console.log("Already processing, ignoring request");
-        return;
-      }
-
-      isTyping = true;
-      isProcessing = true;
-      sendBtn.disabled = true;
-
-      // Show user message
-      createMessage('user', prompt);
-
-      // Show typing indicator
-      const typingIndicator = showTypingIndicator();
-
-      // Reset input
-      promptInput.value = "";
-      promptInput.style.height = 'auto';
-
-      try {
-        // Debug: Log what we're sending
-        console.log("Current chatHistory before sending:", chatHistory);
-        console.log("Current prompt:", prompt);
-        
-        // Only send user messages as history (not bot responses)
-        // Don't include the current user message in history
-        const requestBody = {
-          user_input: prompt,
-          history: chatHistory.slice(-5), // Keep last 5 user messages for context
-          session_id: sessionId
-        };
-        console.log("Sending request with history:", requestBody.history);
-        console.log("Full request body:", requestBody);
-        
-        // Fetch response from API gateway (send history BEFORE adding current message)
-        const response = await fetch(apiUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestBody)
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        
-        // Debug: Log the raw response
-        console.log("Raw bot response:", data.bot_response);
-        
-        // Add only user message to history AFTER getting response
-        // Don't add bot response to history
-        chatHistory.push(prompt);
-        
-        // Build response content with additional info
-        let responseContent = data.bot_response;
-        
-        // Debug: Log processed content
-        console.log("Processed response content:", responseContent);
-        
-        // Add risk level indicator if not normal
-        if (data.risk_level && data.risk_level !== "normal") {
-          const riskEmoji = data.risk_level === "emergency" ? "🚨" : "⚠️";
-          responseContent = `${riskEmoji} **${data.risk_level.toUpperCase()}**\n\n${responseContent}`;
-        }
-        
-        // Add suggestion if available
-        if (data.suggestion) {
-          responseContent += `\n\n---\n\n${data.suggestion}`;
-        }
-        
-        // Debug: Log final processed content
-        console.log("Final processed content:", responseContent);
-        
-        // Remove typing indicator and create bot message with raw content
-        typingIndicator.remove();
-        const botMsg = createMessage('bot', responseContent);
-        
-        // Scroll to bottom
-        chatBox.scrollTop = chatBox.scrollHeight;
-        
-        // Highlight code blocks
-        document.querySelectorAll('pre code').forEach(hljs.highlightElement);
-        
-        // Log additional info to console for monitoring
-        console.log("Chat Response:", {
-          risk_level: data.risk_level,
-          confidence: data.confidence,
-          emotion_label: data.emotion_label,
-          knowledge_count: data.knowledge ? data.knowledge.length : 0
-        });
-        
-      } catch (error) {
-        const errorMsg = createMessage('bot', '**Lỗi:** Không thể kết nối với máy chủ. Vui lòng thử lại sau.');
-        console.error('Error:', error);
-      } finally {
-        isTyping = false;
-        isProcessing = false;
-        sendBtn.disabled = !promptInput.value.trim();
-      }
-    }
-
-    sendBtn.addEventListener("click", sendMessage);
-
-    // Handle Enter key
-    promptInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        if (!isTyping && !isProcessing) { // Only send if not already processing
-          sendMessage();
-        }
-      }
-    });
-
-    // Initial setup
+    isTyping = true;
     sendBtn.disabled = true;
 
-    // Add some nice entrance animations
-    document.addEventListener('DOMContentLoaded', function() {
-      setTimeout(() => {
-        document.body.style.opacity = '1';
-      }, 100);
-    });
-  </script>
+    createMessage('user', prompt);
+    const typingIndicator = showTypingIndicator();
+
+    promptInput.value = "";
+    promptInput.style.height = 'auto';
+
+    try {
+      typingIndicator.remove();
+      const botMsg = createMessage('bot', '');
+
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_input: prompt,
+                                history: [] })
+      });
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullResponse = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const text = decoder.decode(value);
+        const sanitizedText = text.replace(/<\|.*?\|>/g, ''); // loại bỏ token đặc biệt
+        fullResponse += sanitizedText;
+
+        botMsg.innerHTML = marked.parse(fullResponse);
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        document.querySelectorAll('pre code').forEach(hljs.highlightElement);
+      }
+    } catch (error) {
+      createMessage('bot', '**Lỗi:** Không thể kết nối với máy chủ. Vui lòng thử lại sau.');
+      console.error(error);
+    } finally {
+      isTyping = false;
+      sendBtn.disabled = !promptInput.value.trim();
+    }
+  }
+
+  sendBtn.addEventListener("click", sendMessage);
+
+  promptInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  sendBtn.disabled = true;
+
+  document.addEventListener('DOMContentLoaded', function () {
+    setTimeout(() => {
+      document.body.style.opacity = '1';
+    }, 100);
+  });
+</script>
+
 </body>
 </html>
