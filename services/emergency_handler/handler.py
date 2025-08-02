@@ -6,7 +6,7 @@ import os
 
 # Add parent directory to path for database import
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-from Database.core import EmergencyLog, SessionLocal
+from Database.core import EmergencyLog
 
 logger = logging.getLogger(__name__)
 
@@ -131,16 +131,8 @@ class EmergencyHandler:
         Lưu log emergency vào database
         """
         try:
-            db = SessionLocal()
-            emergency_log = EmergencyLog(
-                user_id=user_id,
-                message=message,
-                action=action,
-                status=status
-            )
-            db.add(emergency_log)
-            db.commit()
-            db.close()
+            emergency_log = EmergencyLog(user_id, message, action, status)
+            emergency_log.save()
             logger.info(f"Emergency log saved: {user_id} - {action} - {status}")
         except Exception as e:
             logger.error(f"Error saving emergency log: {e}")

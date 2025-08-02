@@ -36,8 +36,8 @@ spec.loader.exec_module(response_generator)
 extract_main_response = response_generator.extract_main_response
 final_cleanup = response_generator.final_cleanup
 
-# Import MongoDB feedback service
-from services.mongodb_feedback_service import mongodb_feedback_service
+# Import feedback từ core
+from Database.core import Feedback, mongodb_manager
 
 # Cấu hình logging
 logging.basicConfig(level=logging.INFO)
@@ -138,7 +138,8 @@ async def handle_feedback(req: FeedbackRequest):
     try:
         logger.info(f"Received feedback: {req.feedback_type} for session {req.session_id}")
         
-        result = mongodb_feedback_service.save_feedback(
+        # Tạo feedback object và lưu
+        feedback = Feedback(
             session_id=req.session_id,
             user_input=req.user_input,
             bot_response=req.bot_response,
@@ -147,6 +148,19 @@ async def handle_feedback(req: FeedbackRequest):
             risk_level=req.risk_level,
             emotion_label=req.emotion_label
         )
+        feedback_id = feedback.save()
+        
+        if feedback_id:
+            result = {
+                "status": "success",
+                "message": "Feedback đã được lưu thành công",
+                "feedback_id": feedback_id
+            }
+        else:
+            result = {
+                "status": "error",
+                "message": "Lỗi khi lưu feedback"
+            }
         
         if result["status"] == "success":
             return {
@@ -167,7 +181,23 @@ async def get_feedback_stats(session_id: Optional[str] = None):
     Lấy thống kê feedback
     """
     try:
-        stats = mongodb_feedback_service.get_feedback_stats(session_id)
+        # Lấy thống kê feedback
+        query = {}
+        if session_id:
+            query["session_id"] = session_id
+        
+        total = mongodb_manager.user_feedback.count_documents(query)
+        likes = mongodb_manager.user_feedback.count_documents({**query, "feedback_type": "like"})
+        dislikes = mongodb_manager.user_feedback.count_documents({**query, "feedback_type": "dislike"})
+        
+        satisfaction_rate = (likes / total * 100) if total > 0 else 0
+        
+        stats = {
+            "total": total,
+            "likes": likes,
+            "dislikes": dislikes,
+            "satisfaction_rate": satisfaction_rate
+        }
         return stats
     except Exception as e:
         logger.error(f"Error getting feedback stats: {e}")
@@ -179,7 +209,23 @@ async def get_dislike_feedback(limit: int = 50):
     Lấy danh sách feedback dislike để phân tích
     """
     try:
-        dislikes = mongodb_feedback_service.get_dislike_feedback(limit)
+        # Lấy danh sách feedback dislike
+        dislikes_docs = list(mongodb_manager.user_feedback.find(
+            {"feedback_type": "dislike"}
+        ).sort("timestamp", -1).limit(limit))
+        
+        dislikes = []
+        for doc in dislikes_docs:
+            dislikes.append({
+                "id": str(doc["_id"]),
+                "session_id": doc["session_id"],
+                "user_input": doc["user_input"],
+                "bot_response": doc["bot_response"],
+                "user_feedback_text": doc.get("user_feedback_text"),
+                "timestamp": doc["timestamp"].isoformat(),
+                "risk_level": doc.get("risk_level"),
+                "emotion_label": doc.get("emotion_label")
+            })
         return {
             "dislikes": dislikes,
             "count": len(dislikes)
@@ -194,7 +240,26 @@ async def export_feedback(filepath: str = "feedback_data.jsonl"):
     Xuất feedback ra file JSONL để fine-tuning
     """
     try:
-        success = mongodb_feedback_service.export_feedback_to_jsonl(filepath)
+        # Xuất feedback ra file JSONL
+        all_feedback = list(mongodb_manager.user_feedback.find().sort("timestamp", -1))
+        
+        import json
+        with open(filepath, 'w', encoding='utf-8') as f:
+            for doc in all_feedback:
+                record = {
+                    "id": str(doc["_id"]),
+                    "session_id": doc["session_id"],
+                    "user_input": doc["user_input"],
+                    "bot_response": doc["bot_response"],
+                    "feedback_type": doc["feedback_type"],
+                    "user_feedback_text": doc.get("user_feedback_text"),
+                    "timestamp": doc["timestamp"].isoformat(),
+                    "risk_level": doc.get("risk_level"),
+                    "emotion_label": doc.get("emotion_label")
+                }
+                f.write(json.dumps(record, ensure_ascii=False) + '\n')
+        
+        success = True
         if success:
             return {
                 "status": "success",

@@ -19,7 +19,7 @@ from services.mental_state_classifier.classifer import detect_mental_state
 from services.setiment_analysis.analyzer import detect_sentiment_label
 from services.chatbot.response_generator import call_gemini_llm
 from services.emergency_handler.handler import EmergencyHandler
-
+from Database.core import Feedback, mongodb_manager
 
 from services.gating_router.prompt_builder import build_prompt_from_object
 from services.semantic_search import SemanticIndexer
@@ -89,6 +89,15 @@ class SemanticSearchRequest(BaseModel):
 
 class SemanticSearchResponse(BaseModel):
     results: list
+
+class FeedbackRequest(BaseModel):
+    session_id: str
+    user_input: str
+    bot_response: str
+    feedback_type: str  # 'like' or 'dislike'
+    user_feedback_text: Optional[str] = None
+    risk_level: Optional[str] = None
+    emotion_label: Optional[str] = None
 
 # Khởi tạo semantic indexer với re-ranker
 indexer = SemanticIndexer(use_reranker=True, reranker_type="cross_encoder")
@@ -235,16 +244,7 @@ async def handle_chat(req: ChatRequest):
                 warning = "⚠️ RỦI RO: Bạn có thể cân nhắc liên hệ chuyên gia tâm lý để được hỗ trợ tốt hơn."
             elif sentiment_obj and (getattr(sentiment_obj, 'sentiment', None) in ["3", "negative"]) and (mental_state_obj and getattr(mental_state_obj, 'mental_state', None) != "normal"):
                 warning = "💡 Gợi ý: Hãy thử các hoạt động thư giãn như thiền, tập thể dục, hoặc nói chuyện với người thân."
-        # return ChatResponse(
-        #     bot_response=reply,
-        #     risk_level=risk_level,
-        #     confidence=confidence,
-        #     emotion_label=getattr(sentiment_obj, 'sentiment', '') if sentiment_obj else '',
-        #     mental_state=getattr(mental_state_obj, 'mental_state', '') if mental_state_obj else '',
-        #     suggestion=warning or '',
-        #     knowledge=knowledge_texts,
-        #     knowledge_similarity_scores=knowledge_similarity_scores
-        # )
+        # Trả về streaming response
         return StreamingResponse(reply, media_type="text/plain")
     except Exception as e:
         import traceback
@@ -325,6 +325,110 @@ async def clear_context(user_id: str):
     except Exception as e:
         logger.error(f"Error clearing context: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to clear context: {str(e)}")
+
+@app.post("/feedback")
+async def handle_feedback(req: FeedbackRequest):
+    """
+    Xử lý feedback từ người dùng
+    """
+    try:
+        logger.info(f"Received feedback: {req.feedback_type} for session {req.session_id}")
+        
+        # Tạo feedback object và lưu
+        feedback = Feedback(
+            session_id=req.session_id,
+            user_input=req.user_input,
+            bot_response=req.bot_response,
+            feedback_type=req.feedback_type,
+            user_feedback_text=req.user_feedback_text,
+            risk_level=req.risk_level,
+            emotion_label=req.emotion_label
+        )
+        feedback_id = feedback.save()
+        
+        if feedback_id:
+            result = {
+                "status": "success",
+                "message": "Feedback đã được lưu thành công",
+                "feedback_id": feedback_id
+            }
+        else:
+            result = {
+                "status": "error",
+                "message": "Lỗi khi lưu feedback"
+            }
+        
+        if result["status"] == "success":
+            return {
+                "status": "success",
+                "message": "Cảm ơn bạn đã đưa ra phản hồi!",
+                "feedback_id": result["feedback_id"]
+            }
+        else:
+            raise HTTPException(status_code=500, detail=result["message"])
+            
+    except Exception as e:
+        logger.error(f"Error in feedback endpoint: {e}")
+        raise HTTPException(status_code=500, detail=f"Lỗi khi xử lý feedback: {str(e)}")
+
+@app.get("/feedback/stats")
+async def get_feedback_stats(session_id: Optional[str] = None):
+    """
+    Lấy thống kê feedback
+    """
+    try:
+        # Lấy thống kê feedback
+        query = {}
+        if session_id:
+            query["session_id"] = session_id
+        
+        total = mongodb_manager.user_feedback.count_documents(query)
+        likes = mongodb_manager.user_feedback.count_documents({**query, "feedback_type": "like"})
+        dislikes = mongodb_manager.user_feedback.count_documents({**query, "feedback_type": "dislike"})
+        
+        satisfaction_rate = (likes / total * 100) if total > 0 else 0
+        
+        stats = {
+            "total": total,
+            "likes": likes,
+            "dislikes": dislikes,
+            "satisfaction_rate": satisfaction_rate
+        }
+        return stats
+    except Exception as e:
+        logger.error(f"Error getting feedback stats: {e}")
+        raise HTTPException(status_code=500, detail=f"Lỗi khi lấy thống kê: {str(e)}")
+
+@app.get("/feedback/dislikes")
+async def get_dislike_feedback(limit: int = 50):
+    """
+    Lấy danh sách feedback dislike để phân tích
+    """
+    try:
+        # Lấy danh sách feedback dislike
+        dislikes_docs = list(mongodb_manager.user_feedback.find(
+            {"feedback_type": "dislike"}
+        ).sort("timestamp", -1).limit(limit))
+        
+        dislikes = []
+        for doc in dislikes_docs:
+            dislikes.append({
+                "id": str(doc["_id"]),
+                "session_id": doc["session_id"],
+                "user_input": doc["user_input"],
+                "bot_response": doc["bot_response"],
+                "user_feedback_text": doc.get("user_feedback_text"),
+                "timestamp": doc["timestamp"].isoformat(),
+                "risk_level": doc.get("risk_level"),
+                "emotion_label": doc.get("emotion_label")
+            })
+        return {
+            "dislikes": dislikes,
+            "total": len(dislikes)
+        }
+    except Exception as e:
+        logger.error(f"Error getting dislike feedback: {e}")
+        raise HTTPException(status_code=500, detail=f"Lỗi khi lấy feedback: {str(e)}")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")

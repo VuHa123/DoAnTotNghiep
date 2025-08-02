@@ -7,7 +7,6 @@ import unicodedata
 import sys
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-
 # Thêm đường dẫn để import từ llmserver
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'llmserver'))
@@ -22,7 +21,6 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 CUSTOM_LLM_API_URL = API_LLM
-
 # Tạo session với connection pooling và retry
 session = requests.Session()
 retry_strategy = Retry(
@@ -274,10 +272,14 @@ def call_gemini_llm(prompt: str) -> str:
     # except Exception as e:
     #     logger.error(f"❌ Custom LLM API lỗi không xác định: {e}")
     #     return f"[Lỗi không xác định: {e}]"
-    res = session.post(CUSTOM_LLM_API_URL, headers=headers, json=payload, timeout=15,stream=True)
-    for chunk in res.iter_content(chunk_size=None):
-        if chunk:
-            yield chunk.decode("utf-8")
+    try:
+        res = session.post(CUSTOM_LLM_API_URL, headers=headers, json=payload, timeout=15, stream=True)
+        for chunk in res.iter_content(chunk_size=None):
+            if chunk:
+                yield chunk.decode("utf-8")
+    except Exception as e:
+        logger.error(f"❌ Custom LLM API lỗi: {e}")
+        yield f"[Lỗi: {e}]"
 
 
 def extract_main_response(text: str) -> str:

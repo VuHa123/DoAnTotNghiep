@@ -556,26 +556,27 @@
     }
 
     .feedback-btn {
-      padding: 8px 16px;
-      border: none;
-      border-radius: 8px;
+      padding: 8px 20px;
+      border: 2px solid transparent;
+      border-radius: 12px;
       cursor: pointer;
       font-size: 14px;
-      font-weight: 500;
-      transition: all 0.2s ease;
+      font-weight: 600;
+      transition: all 0.3s ease;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
 
     .feedback-btn.like {
-      background: linear-gradient(135deg, #48bb78, #38a169);
+      background: linear-gradient(135deg, #667eea, #764ba2);
       color: white;
     }
 
     .feedback-btn.like:hover {
-      background: linear-gradient(135deg, #38a169, #2f855a);
-      transform: translateY(-1px);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102,126,234,0.4);
     }
 
     .feedback-btn.dislike {
@@ -584,8 +585,8 @@
     }
 
     .feedback-btn.dislike:hover {
-      background: linear-gradient(135deg, #e53e3e, #c53030);
-      transform: translateY(-1px);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(245,101,101,0.4);
     }
 
     .feedback-btn:disabled {
@@ -710,6 +711,8 @@
   const welcomeScreen = document.getElementById("welcome-screen");
 
   let isTyping = false;
+  let chatHistory = [];
+  let sessionId = "session_" + Date.now();
 
   // Configure marked
   marked.setOptions({
@@ -740,7 +743,7 @@
     }
   }
 
-  function createMessage(role, content) {
+  function createMessage(role, content, sessionId = null, userInput = null, riskLevel = null, emotionLabel = null) {
     hideWelcomeScreen();
 
     const message = document.createElement('div');
@@ -756,18 +759,133 @@
     const contentDiv = document.createElement('div');
     contentDiv.className = 'message-content';
 
+    let processedContent = content;
+
     if (role === 'user') {
-      contentDiv.innerHTML = marked.parse(content);
+      contentDiv.innerHTML = marked.parse(processedContent);
     } else {
-      contentDiv.innerHTML = content;
+      // Xử lý xuống dòng cho bullet points
+      processedContent = processedContent.replace(/(?<!\w)- /g, '\n- ');
+      // Xử lý xuống dòng cho asterisk lists
+      processedContent = processedContent.replace(/(?<!\*)\* (?!\*)([^\n]+)/g, '\n* $1');
+      // Xử lý xuống dòng cho bold text
+      processedContent = processedContent.replace(/(?<!\n)(\*\*[^\n]+?\*\*)/g, '\n$1');
+      // Xử lý xuống dòng cho numbered lists
+      processedContent = processedContent.replace(/(?<!\n)(\d+\.\s+)/g, '\n$1');
+      // Xử lý xuống dòng cho labels
+      processedContent = processedContent.replace(/\*\*([^*]+):\*\*/g, '\n\n**$1:**');
+      
+      contentDiv.innerHTML = marked.parse(processedContent);
     }
 
     messageInner.appendChild(avatar);
     messageInner.appendChild(contentDiv);
+    
+    // Thêm feedback container cho tin nhắn bot
+    if (role === 'bot' && sessionId && userInput) {
+      const feedbackContainer = createFeedbackContainer(sessionId, userInput, content, riskLevel, emotionLabel);
+      messageInner.appendChild(feedbackContainer);
+    }
+    
     message.appendChild(messageInner);
     chatBox.appendChild(message);
     chatBox.scrollTop = chatBox.scrollHeight;
     return contentDiv;
+  }
+
+  function createFeedbackContainer(sessionId, userInput, botResponse, riskLevel, emotionLabel) {
+    const container = document.createElement('div');
+    container.className = 'feedback-container';
+    
+    const question = document.createElement('div');
+    question.className = 'feedback-question';
+    question.textContent = 'Bạn có hài lòng với phản hồi này không?';
+    
+    const buttons = document.createElement('div');
+    buttons.className = 'feedback-buttons';
+    
+    const likeBtn = document.createElement('button');
+    likeBtn.className = 'feedback-btn like';
+    likeBtn.innerHTML = '👍 Hài lòng';
+    likeBtn.onclick = () => submitFeedback(sessionId, userInput, botResponse, 'like', riskLevel, emotionLabel, container);
+    
+    const dislikeBtn = document.createElement('button');
+    dislikeBtn.className = 'feedback-btn dislike';
+    dislikeBtn.innerHTML = '👎 Không hài lòng';
+    dislikeBtn.onclick = () => showFeedbackForm(sessionId, userInput, botResponse, 'dislike', riskLevel, emotionLabel, container);
+    
+    buttons.appendChild(likeBtn);
+    buttons.appendChild(dislikeBtn);
+    
+    container.appendChild(question);
+    container.appendChild(buttons);
+    
+    return container;
+  }
+
+  function showFeedbackForm(sessionId, userInput, botResponse, feedbackType, riskLevel, emotionLabel, container) {
+    // Ẩn nút feedback
+    const buttons = container.querySelector('.feedback-buttons');
+    buttons.style.display = 'none';
+    
+    // Tạo form nhập lý do
+    const form = document.createElement('div');
+    form.className = 'feedback-form';
+    
+    const textarea = document.createElement('textarea');
+    textarea.className = 'feedback-textarea';
+    textarea.placeholder = 'Vui lòng cho biết lý do bạn không hài lòng (tùy chọn)...';
+    
+    const submitBtn = document.createElement('button');
+    submitBtn.className = 'feedback-submit';
+    submitBtn.textContent = 'Gửi phản hồi';
+    submitBtn.onclick = () => {
+      const feedbackText = textarea.value.trim();
+      submitFeedback(sessionId, userInput, botResponse, feedbackType, riskLevel, emotionLabel, container, feedbackText);
+    };
+    
+    form.appendChild(textarea);
+    form.appendChild(submitBtn);
+    container.appendChild(form);
+  }
+
+  async function submitFeedback(sessionId, userInput, botResponse, feedbackType, riskLevel, emotionLabel, container, feedbackText = '') {
+    try {
+      // Disable tất cả nút trong container
+      const buttons = container.querySelectorAll('button');
+      buttons.forEach(btn => btn.disabled = true);
+      
+      const response = await fetch('/feedback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          session_id: sessionId,
+          user_input: userInput,
+          bot_response: botResponse,
+          feedback_type: feedbackType,
+          user_feedback_text: feedbackText || null,
+          risk_level: riskLevel || null,
+          emotion_label: emotionLabel || null
+        })
+      });
+      
+      if (response.ok) {
+        // Hiển thị thông báo cảm ơn
+        container.innerHTML = '<div class="feedback-thanks">Cảm ơn bạn đã đưa ra phản hồi! 💚</div>';
+      } else {
+        throw new Error('Failed to submit feedback');
+      }
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+      // Hiển thị lại nút feedback nếu có lỗi
+      const buttons = container.querySelector('.feedback-buttons');
+      if (buttons) {
+        buttons.style.display = 'flex';
+        buttons.querySelectorAll('button').forEach(btn => btn.disabled = false);
+      }
+    }
   }
 
   function showTypingIndicator() {
@@ -777,28 +895,8 @@
     message.className = 'message bot';
     message.id = 'typing-message';
 
-<<<<<<< HEAD
     const messageInner = document.createElement('div');
     messageInner.className = 'message-inner';
-=======
-    function createMessage(role, content, sessionId = null, userInput = null, riskLevel = null, emotionLabel = null) {
-      hideWelcomeScreen();
-      
-      const message = document.createElement('div');
-      message.className = `message ${role}`;
-      
-      const messageInner = document.createElement('div');
-      messageInner.className = 'message-inner';
-      
-      const avatar = document.createElement('div');
-      avatar.className = `avatar ${role}`;
-      avatar.textContent = role === 'user' ? 'B' : 'AI';
-      
-      const contentDiv = document.createElement('div');
-      contentDiv.className = 'message-content';
-      
-      let processedContent = content;
->>>>>>> 88fc445 (update index.html)
 
     const avatar = document.createElement('div');
     avatar.className = 'avatar bot';
@@ -831,344 +929,151 @@
     promptInput.style.height = 'auto';
     sendBtn.disabled = true;
     isTyping = false;
+    chatHistory = []; // Clear user message history
+    sessionId = "session_" + Date.now();
+    console.log("New session started:", sessionId);
   }
 
   async function sendMessage() {
     const prompt = promptInput.value.trim();
     if (!prompt || isTyping) return;
 
-<<<<<<< HEAD
     isTyping = true;
-=======
-      // Xử lý xuống dòng cho labels
-      processedContent = processedContent.replace(/\*\*([^*]+):\*\*/g, '\n\n**$1:**');
-      
-      // Xử lý xuống dòng cho các câu kết thúc cụ thể (chỉ những câu này mới xuống dòng)
-      processedContent = processedContent.replace(/(?<!\n)(Hy vọng những gợi ý này|Tôi hy vọng những gợi ý này|Nếu bạn cần thêm hỗ trợ|Hãy cho tôi biết|Vui lòng cho tôi biết|Cảm ơn bạn đã chia sẻ|Xin lỗi vì|Đừng ngần ngại liên hệ)/g, '\n\n$1');
-
-      contentDiv.innerHTML = marked.parse(processedContent);
-      
-      messageInner.appendChild(avatar);
-      messageInner.appendChild(contentDiv);
-      
-      // Thêm feedback container cho tin nhắn bot
-      if (role === 'bot' && sessionId && userInput) {
-        const feedbackContainer = createFeedbackContainer(sessionId, userInput, content, riskLevel, emotionLabel);
-        messageInner.appendChild(feedbackContainer);
-      }
-      
-      message.appendChild(messageInner);
-      chatBox.appendChild(message);
-      chatBox.scrollTop = chatBox.scrollHeight;
-      return contentDiv;
-    }
-
-    function createFeedbackContainer(sessionId, userInput, botResponse, riskLevel, emotionLabel) {
-      const container = document.createElement('div');
-      container.className = 'feedback-container';
-      
-      const question = document.createElement('div');
-      question.className = 'feedback-question';
-      question.textContent = 'Bạn có hài lòng với phản hồi này không?';
-      
-      const buttons = document.createElement('div');
-      buttons.className = 'feedback-buttons';
-      
-      const likeBtn = document.createElement('button');
-      likeBtn.className = 'feedback-btn like';
-      likeBtn.innerHTML = '👍 Hài lòng';
-      likeBtn.onclick = () => submitFeedback(sessionId, userInput, botResponse, 'like', riskLevel, emotionLabel, container);
-      
-      const dislikeBtn = document.createElement('button');
-      dislikeBtn.className = 'feedback-btn dislike';
-      dislikeBtn.innerHTML = '👎 Không hài lòng';
-      dislikeBtn.onclick = () => showFeedbackForm(sessionId, userInput, botResponse, 'dislike', riskLevel, emotionLabel, container);
-      
-      buttons.appendChild(likeBtn);
-      buttons.appendChild(dislikeBtn);
-      
-      container.appendChild(question);
-      container.appendChild(buttons);
-      
-      return container;
-    }
-
-    function showFeedbackForm(sessionId, userInput, botResponse, feedbackType, riskLevel, emotionLabel, container) {
-      // Ẩn nút feedback
-      const buttons = container.querySelector('.feedback-buttons');
-      buttons.style.display = 'none';
-      
-      // Tạo form nhập lý do
-      const form = document.createElement('div');
-      form.className = 'feedback-form';
-      
-      const textarea = document.createElement('textarea');
-      textarea.className = 'feedback-textarea';
-      textarea.placeholder = 'Vui lòng cho biết lý do bạn không hài lòng (tùy chọn)...';
-      
-      const submitBtn = document.createElement('button');
-      submitBtn.className = 'feedback-submit';
-      submitBtn.textContent = 'Gửi phản hồi';
-      submitBtn.onclick = () => {
-        const feedbackText = textarea.value.trim();
-        submitFeedback(sessionId, userInput, botResponse, feedbackType, riskLevel, emotionLabel, container, feedbackText);
-      };
-      
-      form.appendChild(textarea);
-      form.appendChild(submitBtn);
-      container.appendChild(form);
-    }
-
-    async function submitFeedback(sessionId, userInput, botResponse, feedbackType, riskLevel, emotionLabel, container, feedbackText = '') {
-      try {
-        // Disable tất cả nút trong container
-        const buttons = container.querySelectorAll('button');
-        buttons.forEach(btn => btn.disabled = true);
-        
-        const response = await fetch('/feedback', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            session_id: sessionId,
-            user_input: userInput,
-            bot_response: botResponse,
-            feedback_type: feedbackType,
-            user_feedback_text: feedbackText || null,
-            risk_level: riskLevel || null,
-            emotion_label: emotionLabel || null
-          })
-        });
-        
-        if (response.ok) {
-          // Hiển thị thông báo cảm ơn
-          container.innerHTML = '<div class="feedback-thanks">Cảm ơn bạn đã đưa ra phản hồi! 💚</div>';
-        } else {
-          throw new Error('Failed to submit feedback');
-        }
-      } catch (error) {
-        console.error('Error submitting feedback:', error);
-        // Hiển thị lại nút feedback nếu có lỗi
-        const buttons = container.querySelector('.feedback-buttons');
-        if (buttons) {
-          buttons.style.display = 'flex';
-          buttons.querySelectorAll('button').forEach(btn => btn.disabled = false);
-        }
-      }
-    }
-
-    function showTypingIndicator() {
-      hideWelcomeScreen();
-      
-      const message = document.createElement('div');
-      message.className = 'message bot';
-      message.id = 'typing-message';
-      
-      const messageInner = document.createElement('div');
-      messageInner.className = 'message-inner';
-      
-      const avatar = document.createElement('div');
-      avatar.className = 'avatar bot';
-      avatar.textContent = 'AI';
-      
-      const contentDiv = document.createElement('div');
-      contentDiv.className = 'message-content';
-      contentDiv.innerHTML = '<div class="typing-container"><div class="typing-indicator"></div><div class="typing-indicator"></div><div class="typing-indicator"></div></div>';
-      
-      messageInner.appendChild(avatar);
-      messageInner.appendChild(contentDiv);
-      message.appendChild(messageInner);
-      chatBox.appendChild(message);
-      chatBox.scrollTop = chatBox.scrollHeight;
-      return message;
-    }
-
-    function useExample(text) {
-      promptInput.value = text;
-      promptInput.style.height = 'auto';
-      promptInput.style.height = Math.min(promptInput.scrollHeight, 200) + 'px';
-      sendBtn.disabled = false;
-      promptInput.focus();
-    }
-
-    function clearChat() {
-      chatBox.innerHTML = '';
-      showWelcomeScreen();
-      promptInput.value = '';
-      promptInput.style.height = 'auto';
-      sendBtn.disabled = true;
-      isTyping = false;
-      chatHistory = []; // Clear user message history
-      sessionId = "session_" + Date.now();
-      console.log("New session started:", sessionId);
-    }
-
-    async function sendMessage() {
-      const prompt = promptInput.value.trim();
-      if (!prompt || isTyping || isProcessing) return;
-
-      // Prevent multiple requests
-      if (isTyping || isProcessing) {
-        console.log("Already processing, ignoring request");
-        return;
-      }
-
-      isTyping = true;
-      isProcessing = true;
-      sendBtn.disabled = true;
-
-      // Show user message
-      createMessage('user', prompt);
-
-      // Show typing indicator
-      const typingIndicator = showTypingIndicator();
-
-      // Reset input
-      promptInput.value = "";
-      promptInput.style.height = 'auto';
-
-      try {
-        // Debug: Log what we're sending
-        console.log("Current chatHistory before sending:", chatHistory);
-        console.log("Current prompt:", prompt);
-        
-        // Only send user messages as history (not bot responses)
-        // Don't include the current user message in history
-        const requestBody = {
-          user_input: prompt,
-          history: chatHistory.slice(-5), // Keep last 5 user messages for context
-          session_id: sessionId
-        };
-        console.log("Sending request with history:", requestBody.history);
-        console.log("Full request body:", requestBody);
-        
-        // Fetch response from API gateway (send history BEFORE adding current message)
-        const response = await fetch(apiUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestBody)
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        
-        // Debug: Log the raw response
-        console.log("Raw bot response:", data.bot_response);
-        
-        // Add only user message to history AFTER getting response
-        // Don't add bot response to history
-        chatHistory.push(prompt);
-        
-        // Build response content with additional info
-        let responseContent = cleanResponseText(data.bot_response);
-        
-        // Debug: Log processed content
-        console.log("Processed response content:", responseContent);
-        
-        // Add risk level indicator if not normal
-        if (data.risk_level && data.risk_level !== "normal") {
-          const riskEmoji = data.risk_level === "emergency" ? "🚨" : "⚠️";
-          responseContent = `${riskEmoji} **${data.risk_level.toUpperCase()}**\n\n${responseContent}`;
-        }
-        
-        // Add suggestion if available
-        if (data.suggestion) {
-          responseContent += `\n\n---\n\n${data.suggestion}`;
-        }
-        
-        // Debug: Log final processed content
-        console.log("Final processed content:", responseContent);
-        
-        // Remove typing indicator and create bot message with raw content
-        typingIndicator.remove();
-        const botMsg = createMessage('bot', responseContent, data.session_id, prompt, data.risk_level, data.emotion_label);
-        
-        // Scroll to bottom
-        chatBox.scrollTop = chatBox.scrollHeight;
-        
-        // Highlight code blocks
-        document.querySelectorAll('pre code').forEach(hljs.highlightElement);
-        
-        // Log additional info to console for monitoring
-        console.log("Chat Response:", {
-          session_id: data.session_id,
-          risk_level: data.risk_level,
-          confidence: data.confidence,
-          emotion_label: data.emotion_label,
-          knowledge_count: data.knowledge ? data.knowledge.length : 0
-        });
-        
-      } catch (error) {
-        const errorMsg = createMessage('bot', '**Lỗi:** Không thể kết nối với máy chủ. Vui lòng thử lại sau.');
-        console.error('Error:', error);
-      } finally {
-        isTyping = false;
-        isProcessing = false;
-        sendBtn.disabled = !promptInput.value.trim();
-      }
-    }
-
-    sendBtn.addEventListener("click", sendMessage);
-
-    // Handle Enter key
-    promptInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        if (!isTyping && !isProcessing) { // Only send if not already processing
-          sendMessage();
-        }
-      }
-    });
-
-    // Initial setup
->>>>>>> 88fc445 (update index.html)
     sendBtn.disabled = true;
 
+    // Show user message
     createMessage('user', prompt);
+
+    // Show typing indicator
     const typingIndicator = showTypingIndicator();
 
+    // Reset input
     promptInput.value = "";
     promptInput.style.height = 'auto';
 
     try {
-      typingIndicator.remove();
-      const botMsg = createMessage('bot', '');
-
+      // Debug: Log what we're sending
+      console.log("Current chatHistory before sending:", chatHistory);
+      console.log("Current prompt:", prompt);
+      
+      // Only send user messages as history (not bot responses)
+      const requestBody = {
+        user_input: prompt,
+        history: chatHistory.slice(-5), // Keep last 5 user messages for context
+        session_id: sessionId
+      };
+      console.log("Sending request with history:", requestBody.history);
+      console.log("Full request body:", requestBody);
+      
+      // Fetch JSON response from API gateway
       const response = await fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_input: prompt,
-                                history: [] })
+        body: JSON.stringify(requestBody)
       });
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let fullResponse = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const text = decoder.decode(value);
-        const sanitizedText = text.replace(/<\|.*?\|>/g, ''); // loại bỏ token đặc biệt
-        fullResponse += sanitizedText;
-
-        botMsg.innerHTML = marked.parse(fullResponse);
-        chatBox.scrollTop = chatBox.scrollHeight;
-
-        document.querySelectorAll('pre code').forEach(hljs.highlightElement);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+
+      // Remove typing indicator and create bot message
+      typingIndicator.remove();
+      
+      // Parse JSON response
+      const responseData = await response.json();
+      const botResponse = responseData.bot_response || 'Xin lỗi, tôi không thể tạo ra phản hồi phù hợp.';
+      const riskLevel = responseData.risk_level || 'normal';
+      const emotionLabel = responseData.emotion_label || 'neutral';
+      
+      const botMsg = createMessage('bot', botResponse, sessionId, prompt, riskLevel, emotionLabel);
+      const contentDiv = botMsg.querySelector('.message-content');
+      
+      // Add only user message to history AFTER getting response
+      chatHistory.push(prompt);
+      
+      // Update the message content with markdown
+      contentDiv.innerHTML = marked.parse(botResponse);
+      chatBox.scrollTop = chatBox.scrollHeight;
+      document.querySelectorAll('pre code').forEach(hljs.highlightElement);
+      
+      // Add feedback container
+      const messageInner = botMsg.querySelector('.message-inner');
+      const feedbackContainer = createFeedbackContainer(sessionId, prompt, botResponse, riskLevel, emotionLabel);
+      messageInner.appendChild(feedbackContainer);
+      
+      // Scroll to bottom
+      chatBox.scrollTop = chatBox.scrollHeight;
+      
+      // Log additional info to console for monitoring
+      console.log("Chat Response completed:", {
+        session_id: sessionId,
+        response_length: botResponse.length
+      });
+      
     } catch (error) {
-      createMessage('bot', '**Lỗi:** Không thể kết nối với máy chủ. Vui lòng thử lại sau.');
-      console.error(error);
+      const errorMsg = createMessage('bot', '**Lỗi:** Không thể kết nối với máy chủ. Vui lòng thử lại sau.');
+      console.error('Error:', error);
     } finally {
       isTyping = false;
       sendBtn.disabled = !promptInput.value.trim();
     }
+  }
+
+  // Hàm làm sạch text response trước khi hiển thị
+  function cleanResponseText(text) {
+    if (!text || typeof text !== 'string') {
+      return text;
+    }
+    
+    // Loại bỏ các ký tự đặc biệt và emoji không mong muốn
+    let cleaned = text
+      .replace(/[◆◇■□●○▲△▽▼♠♣♥♦★☆♤♧♡♢♪♫♬♩♭♮♯]/g, '') // Ký tự đặc biệt
+      .replace(/[\u200b\u200c\u200d\u200e\u200f\ufeff\ufffe\uffff]/g, '') // Unicode invisible chars
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '') // Control chars
+      .replace(/(.)\1{3,}/g, '$1$1$1') // Loại bỏ ký tự lặp lại quá 3 lần
+      .replace(/<\|[^|]*?\|>/g, '') // Loại bỏ special tokens
+      .replace(/<[^<>]*?\/?>\s*/g, '') // Loại bỏ HTML tags
+      .replace(/\s+/g, ' ') // Chuẩn hóa khoảng trắng
+      .replace(/\n\s*\n/g, '\n') // Chuẩn hóa xuống dòng
+      .trim();
+    
+    // Xử lý xuống dòng cho các câu kết thúc cụ thể
+    cleaned = cleaned.replace(/(?<!\n)(Hy vọng những gợi ý này|Tôi hy vọng những gợi ý này|Nếu bạn cần thêm hỗ trợ|Hãy cho tôi biết|Vui lòng cho tôi biết|Cảm ơn bạn đã chia sẻ|Xin lỗi vì|Đừng ngần ngại liên hệ)/g, '\n\n$1');
+    
+    // Loại bỏ các từ đặc biệt không mong muốn
+    const blacklistWords = [
+      'assistant', 'user', 'system', 'human', 'bot', 'chatbot', 'ai', 'llm',
+      'model', 'generate', 'response', 'prompt', 'input', 'output',
+      'closuresnippet', 'startoftext', 'endoftext', 'endofprompt',
+      'startofresponse', 'fim_system', 'fim_prefix', 'fim_middle', 'fim_suffix'
+    ];
+    
+    blacklistWords.forEach(word => {
+      const regex = new RegExp(`\\b${word}\\b`, 'gi');
+      cleaned = cleaned.replace(regex, '');
+    });
+    
+    // Loại bỏ nội dung lặp lại (cùng một câu xuất hiện nhiều lần)
+    const sentences = cleaned.split(/[.!?]+/).filter(s => s.trim().length > 10);
+    const uniqueSentences = [];
+    const seenSentences = new Set();
+    
+    sentences.forEach(sentence => {
+      const normalized = sentence.replace(/[^\w\s]/g, '').toLowerCase().trim();
+      if (normalized && !seenSentences.has(normalized)) {
+        seenSentences.add(normalized);
+        uniqueSentences.push(sentence.trim());
+      }
+    });
+    
+    cleaned = uniqueSentences.join('. ').trim();
+    
+    // Đảm bảo kết quả không rỗng
+    if (!cleaned) {
+      return "Xin lỗi, tôi không thể tạo ra phản hồi phù hợp. Vui lòng thử lại.";
+    }
+    
+    return cleaned;
   }
 
   sendBtn.addEventListener("click", sendMessage);

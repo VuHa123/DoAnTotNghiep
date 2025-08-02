@@ -15,5 +15,12 @@ def load_model_tokenizer(model_path: str):
     model = PeftModel.from_pretrained(model, model_path)
     model = model.to(device)
     
-    tokenizer.pad_token = tokenizer.eos_token
+    # Sử dụng pad token khác với eos token để tránh cảnh báo
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+        # Thêm pad token vào vocab nếu chưa có
+        if tokenizer.pad_token not in tokenizer.get_vocab():
+            tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+            model.resize_token_embeddings(len(tokenizer))
+    
     return model, tokenizer, device
