@@ -1,0 +1,241 @@
+INFO:     Will watch for changes in these directories: ['D:\\Job\\HaVU\\DoAnTotNghiep\\api_gateway']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [23700] using WatchFiles
+2025-08-02 21:30:48.557830: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2025-08-02 21:30:49.406041: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+Some weights of RobertaForSequenceClassification were not initialized from the model checkpoint at Vuha123/Sentiment and are newly initialized: ['classifier.dense.bias', 'classifier.dense.weight', 'classifier.out_proj.bias', 'classifier.out_proj.weight', 'embeddings.LayerNorm.bias', 'embeddings.LayerNorm.weight', 'embeddings.position_embeddings.weight', 'embeddings.token_type_embeddings.weight', 'embeddings.word_embeddings.weight', 'encoder.layer.0.attention.output.LayerNorm.bias', 'encoder.layer.0.attention.output.LayerNorm.weight', 'encoder.layer.0.attention.output.dense.bias', 'encoder.layer.0.attention.output.dense.weight', 'encoder.layer.0.attention.self.key.bias', 'encoder.layer.0.attention.self.key.weight', 'encoder.layer.0.attention.self.query.bias', 'encoder.layer.0.attention.self.query.weight', 'encoder.layer.0.attention.self.value.bias', 'encoder.layer.0.attention.self.value.weight', 'encoder.layer.0.intermediate.dense.bias', 'encoder.layer.0.intermediate.dense.weight', 'encoder.layer.0.output.LayerNorm.bias', 'encoder.layer.0.output.LayerNorm.weight', 'encoder.layer.0.output.dense.bias', 'encoder.layer.0.output.dense.weight', 'encoder.layer.1.attention.output.LayerNorm.bias', 'encoder.layer.1.attention.output.LayerNorm.weight', 'encoder.layer.1.attention.output.dense.bias', 'encoder.layer.1.attention.output.dense.weight', 'encoder.layer.1.attention.self.key.bias', 'encoder.layer.1.attention.self.key.weight', 'encoder.layer.1.attention.self.query.bias', 'encoder.layer.1.attention.self.query.weight', 'encoder.layer.1.attention.self.value.bias', 'encoder.layer.1.attention.self.value.weight', 'encoder.layer.1.intermediate.dense.bias', 'encoder.layer.1.intermediate.dense.weight', 'encoder.layer.1.output.LayerNorm.bias', 'encoder.layer.1.output.LayerNorm.weight', 'encoder.layer.1.output.dense.bias', 'encoder.layer.1.output.dense.weight', 'encoder.layer.10.attention.output.LayerNorm.bias', 'encoder.layer.10.attention.output.LayerNorm.weight', 'encoder.layer.10.attention.output.dense.bias', 'encoder.layer.10.attention.output.dense.weight', 'encoder.layer.10.attention.self.key.bias', 'encoder.layer.10.attention.self.key.weight', 'encoder.layer.10.attention.self.query.bias', 'encoder.layer.10.attention.self.query.weight', 'encoder.layer.10.attention.self.value.bias', 'encoder.layer.10.attention.self.value.weight', 'encoder.layer.10.intermediate.dense.bias', 'encoder.layer.10.intermediate.dense.weight', 'encoder.layer.10.output.LayerNorm.bias', 'encoder.layer.10.output.LayerNorm.weight', 'encoder.layer.10.output.dense.bias', 'encoder.layer.10.output.dense.weight', 'encoder.layer.11.attention.output.LayerNorm.bias', 'encoder.layer.11.attention.output.LayerNorm.weight', 'encoder.layer.11.attention.output.dense.bias', 'encoder.layer.11.attention.output.dense.weight', 'encoder.layer.11.attention.self.key.bias', 'encoder.layer.11.attention.self.key.weight', 'encoder.layer.11.attention.self.query.bias', 'encoder.layer.11.attention.self.query.weight', 'encoder.layer.11.attention.self.value.bias', 'encoder.layer.11.attention.self.value.weight', 'encoder.layer.11.intermediate.dense.bias', 'encoder.layer.11.intermediate.dense.weight', 'encoder.layer.11.output.LayerNorm.bias', 'encoder.layer.11.output.LayerNorm.weight', 'encoder.layer.11.output.dense.bias', 'encoder.layer.11.output.dense.weight', 'encoder.layer.2.attention.output.LayerNorm.bias', 'encoder.layer.2.attention.output.LayerNorm.weight', 'encoder.layer.2.attention.output.dense.bias', 'encoder.layer.2.attention.output.dense.weight', 'encoder.layer.2.attention.self.key.bias', 'encoder.layer.2.attention.self.key.weight', 'encoder.layer.2.attention.self.query.bias', 'encoder.layer.2.attention.self.query.weight', 'encoder.layer.2.attention.self.value.bias', 'encoder.layer.2.attention.self.value.weight', 'encoder.layer.2.intermediate.dense.bias', 'encoder.layer.2.intermediate.dense.weight', 'encoder.layer.2.output.LayerNorm.bias', 'encoder.layer.2.output.LayerNorm.weight', 'encoder.layer.2.output.dense.bias', 'encoder.layer.2.output.dense.weight', 'encoder.layer.3.attention.output.LayerNorm.bias', 'encoder.layer.3.attention.output.LayerNorm.weight', 'encoder.layer.3.attention.output.dense.bias', 'encoder.layer.3.attention.output.dense.weight', 'encoder.layer.3.attention.self.key.bias', 'encoder.layer.3.attention.self.key.weight', 'encoder.layer.3.attention.self.query.bias', 'encoder.layer.3.attention.self.query.weight', 'encoder.layer.3.attention.self.value.bias', 'encoder.layer.3.attention.self.value.weight', 'encoder.layer.3.intermediate.dense.bias', 'encoder.layer.3.intermediate.dense.weight', 'encoder.layer.3.output.LayerNorm.bias', 'encoder.layer.3.output.LayerNorm.weight', 'encoder.layer.3.output.dense.bias', 'encoder.layer.3.output.dense.weight', 'encoder.layer.4.attention.output.LayerNorm.bias', 'encoder.layer.4.attention.output.LayerNorm.weight', 'encoder.layer.4.attention.output.dense.bias', 'encoder.layer.4.attention.output.dense.weight', 'encoder.layer.4.attention.self.key.bias', 'encoder.layer.4.attention.self.key.weight', 'encoder.layer.4.attention.self.query.bias', 'encoder.layer.4.attention.self.query.weight', 'encoder.layer.4.attention.self.value.bias', 'encoder.layer.4.attention.self.value.weight', 'encoder.layer.4.intermediate.dense.bias', 'encoder.layer.4.intermediate.dense.weight', 'encoder.layer.4.output.LayerNorm.bias', 'encoder.layer.4.output.LayerNorm.weight', 'encoder.layer.4.output.dense.bias', 'encoder.layer.4.output.dense.weight', 'encoder.layer.5.attention.output.LayerNorm.bias', 'encoder.layer.5.attention.output.LayerNorm.weight', 'encoder.layer.5.attention.output.dense.bias', 'encoder.layer.5.attention.output.dense.weight', 'encoder.layer.5.attention.self.key.bias', 'encoder.layer.5.attention.self.key.weight', 'encoder.layer.5.attention.self.query.bias', 'encoder.layer.5.attention.self.query.weight', 'encoder.layer.5.attention.self.value.bias', 'encoder.layer.5.attention.self.value.weight', 'encoder.layer.5.intermediate.dense.bias', 'encoder.layer.5.intermediate.dense.weight', 'encoder.layer.5.output.LayerNorm.bias', 'encoder.layer.5.output.LayerNorm.weight', 'encoder.layer.5.output.dense.bias', 'encoder.layer.5.output.dense.weight', 'encoder.layer.6.attention.output.LayerNorm.bias', 'encoder.layer.6.attention.output.LayerNorm.weight', 'encoder.layer.6.attention.output.dense.bias', 'encoder.layer.6.attention.output.dense.weight', 'encoder.layer.6.attention.self.key.bias', 'encoder.layer.6.attention.self.key.weight', 'encoder.layer.6.attention.self.query.bias', 'encoder.layer.6.attention.self.query.weight', 'encoder.layer.6.attention.self.value.bias', 'encoder.layer.6.attention.self.value.weight', 'encoder.layer.6.intermediate.dense.bias', 'encoder.layer.6.intermediate.dense.weight', 'encoder.layer.6.output.LayerNorm.bias', 'encoder.layer.6.output.LayerNorm.weight', 'encoder.layer.6.output.dense.bias', 'encoder.layer.6.output.dense.weight', 'encoder.layer.7.attention.output.LayerNorm.bias', 'encoder.layer.7.attention.output.LayerNorm.weight', 'encoder.layer.7.attention.output.dense.bias', 'encoder.layer.7.attention.output.dense.weight', 'encoder.layer.7.attention.self.key.bias', 'encoder.layer.7.attention.self.key.weight', 'encoder.layer.7.attention.self.query.bias', 'encoder.layer.7.attention.self.query.weight', 'encoder.layer.7.attention.self.value.bias', 'encoder.layer.7.attention.self.value.weight', 'encoder.layer.7.intermediate.dense.bias', 'encoder.layer.7.intermediate.dense.weight', 'encoder.layer.7.output.LayerNorm.bias', 'encoder.layer.7.output.LayerNorm.weight', 'encoder.layer.7.output.dense.bias', 'encoder.layer.7.output.dense.weight', 'encoder.layer.8.attention.output.LayerNorm.bias', 'encoder.layer.8.attention.output.LayerNorm.weight', 'encoder.layer.8.attention.output.dense.bias', 'encoder.layer.8.attention.output.dense.weight', 'encoder.layer.8.attention.self.key.bias', 'encoder.layer.8.attention.self.key.weight', 'encoder.layer.8.attention.self.query.bias', 'encoder.layer.8.attention.self.query.weight', 'encoder.layer.8.attention.self.value.bias', 'encoder.layer.8.attention.self.value.weight', 'encoder.layer.8.intermediate.dense.bias', 'encoder.layer.8.intermediate.dense.weight', 'encoder.layer.8.output.LayerNorm.bias', 'encoder.layer.8.output.LayerNorm.weight', 'encoder.layer.8.output.dense.bias', 'encoder.layer.8.output.dense.weight', 'encoder.layer.9.attention.output.LayerNorm.bias', 'encoder.layer.9.attention.output.LayerNorm.weight', 'encoder.layer.9.attention.output.dense.bias', 'encoder.layer.9.attention.output.dense.weight', 'encoder.layer.9.attention.self.key.bias', 'encoder.layer.9.attention.self.key.weight', 'encoder.layer.9.attention.self.query.bias', 'encoder.layer.9.attention.self.query.weight', 'encoder.layer.9.attention.self.value.bias', 'encoder.layer.9.attention.self.value.weight', 'encoder.layer.9.intermediate.dense.bias', 'encoder.layer.9.intermediate.dense.weight', 'encoder.layer.9.output.LayerNorm.bias', 'encoder.layer.9.output.LayerNorm.weight', 'encoder.layer.9.output.dense.bias', 'encoder.layer.9.output.dense.weight']
+You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
+Token file token.env not found
+WARNING:tensorflow:From E:\Python\Lib\site-packages\tf_keras\src\losses.py:2976: The name tf.losses.sparse_softmax_cross_entropy is deprecated. Please use tf.compat.v1.losses.sparse_softmax_cross_entropy instead.
+
+2025-08-02 21:31:09,048 INFO httpx: HTTP Request: GET http://localhost:6333 "HTTP/1.1 200 OK"
+2025-08-02 21:31:09,053 INFO sentence_transformers.SentenceTransformer: Use pytorch device_name: cuda:0
+2025-08-02 21:31:09,053 INFO sentence_transformers.SentenceTransformer: Load pretrained SentenceTransformer: sentence-transformers/all-MiniLM-L6-v2
+2025-08-02 21:31:16,512 INFO httpx: HTTP Request: GET http://localhost:6333/collections "HTTP/1.1 200 OK"
+INFO:     Started server process [26508]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+2025-08-02 21:32:17,546 INFO root: GET https://manual-infants-trinity-descending.trycloudflare.com/chat 1ms
+🔄 Loading mental state model from HuggingFace: Vuha123/State
+✅ Mental state model loaded from HuggingFace: Vuha123/State
+🔄 Loading sentiment model from HuggingFace: Vuha123/Sentiment
+✅ Sentiment model loaded from HuggingFace: Vuha123/Sentiment
+🔄 Loading gating router model from HuggingFace: Vuha123/Gating_router
+✅ Gating router model loaded from HuggingFace: Vuha123/Gating_router
+✅ Gating router initialized successfully
+🔄 Loading Cross-Encoder model: cross-encoder/ms-marco-MiniLM-L-6-v2
+✅ Cross-Encoder loaded successfully on cuda
+✅ Re-ranker initialized: cross_encoder
+✅ Qdrant connected at localhost:6333
+INFO:     42.1.70.128:0 - "GET /chat HTTP/1.1" 405 Method Not Allowed
+2025-08-02 21:32:19,030 INFO root: GET https://manual-infants-trinity-descending.trycloudflare.com/favicon.ico 0ms
+INFO:     42.1.70.128:0 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+2025-08-02 21:32:37,968 INFO root: OPTIONS https://manual-infants-trinity-descending.trycloudflare.com/chat 0ms
+INFO:     42.1.70.128:0 - "OPTIONS /chat HTTP/1.1" 200 OK
+2025-08-02 21:32:38,063 INFO api: [chat] \U0001f4e8 Received history: []
+2025-08-02 21:32:38,063 INFO api: [chat] \U0001f4e8 Current user input: T�i \u0111ang c\u1ea3m th\u1ea5y c\u0103ng th\u1eb3ng v� lo l\u1eafng v\u1ec1 c�ng vi\u1ec7c. B\u1ea1n c� th\u1ec3 t\u01b0 v\u1ea5n c�ch gi\u1ea3m stress kh�ng?
+2025-08-02 21:32:38,063 INFO api: [chat] \U0001f4e8 History length: 0
+2025-08-02 21:32:38,063 INFO api: [chat] \U0001f4e8 History type: <class 'list'>
+2025-08-02 21:32:38,063 INFO api: [chat] \U0001f4e8 History contains 0 user messages
+2025-08-02 21:32:38,065 INFO api: [chat] \U0001f6a6 Gating router - \u0111�nh gi� r\u1ee7i ro cho: 'T�i \u0111ang c\u1ea3m th\u1ea5y c\u0103ng th\u1eb3ng v� lo l\u1eafng v\u1ec1 c�ng vi...'
+2025-08-02 21:32:38,338 INFO api: [chat] \U0001f6a6 Gating router result: risk_level='normal', confidence=0.980
+2025-08-02 21:32:38,340 INFO api: [chat] \U0001f50d Semantic search v\u1edbi re-ranker cho: 'T�i \u0111ang c\u1ea3m th\u1ea5y c\u0103ng th\u1eb3ng v� lo l\u1eafng v\u1ec1 c�ng vi...'
+2025-08-02 21:32:38,440 INFO httpx: HTTP Request: POST http://localhost:6333/collections/psychology_chunks/points/search "HTTP/1.1 200 OK"
+2025-08-02 21:32:38,443 INFO api: [chat] \U0001f4da Re-ranker t�m \u0111\u01b0\u1ee3c 0 \u0111o\u1ea1n knowledge c� \u0111\u1ed9 li�n quan cao
+2025-08-02 21:32:38,443 INFO api: [chat] \U0001f527 Building prompt from object: {"input": "T�i \u0111ang c\u1ea3m th\u1ea5y c\u0103ng th\u1eb3ng v� lo l\u1eafng v\u1ec1 c�ng vi\u1ec7c. B\u1ea1n c� th\u1ec3 t\u01b0 v\u1ea5n c�ch gi\u1ea3m stress kh�ng?", "context": {"history": [], "knowledge": []}}...
+2025-08-02 21:32:38,452 INFO api: [chat] \u2705 Prompt built successfully (517 chars)
+2025-08-02 21:32:38,454 INFO root: POST https://manual-infants-trinity-descending.trycloudflare.com/chat 398ms
+[GATING_ROUTER] 🔍 Predict for: 'Tôi đang cảm thấy căng thẳng và lo lắng về công vi...'
+[GATING_ROUTER] 📊 Probabilities: normal=0.016, risky=0.964, emergency=0.020
+[MESSAGE_ROUTER] 🚦 Routing decision:
+[MESSAGE_ROUTER] - threshold_safe: 0.9
+[MESSAGE_ROUTER] - threshold_risk: 0.5
+[MESSAGE_ROUTER] - confidence_emergency: 0.020
+[MESSAGE_ROUTER] ✅ Final decision: normal (confidence: 0.980)
+⚠️ No initial results found from vector search
+[PROMPT_BUILDER] ✅ Prompt ngắn (517 chars), sử dụng trực tiếp
+[PROMPT_BUILDER] 📝 FINAL PROMPT:
+[PROMPT_BUILDER] ============================================================
+Bạn là một trợ lý tâm lý chuyên nghiệp. Hãy lắng nghe, đồng cảm và phản hồi nhẹ nhàng. Tránh phán xét và đưa ra gợi ý hữu ích. Bắt đầu câu trả lời bằng 'Chào bạn' và chỉ đưa ra nội dung chính, không cần giải thích thêm hay kết luận.
+=== THÔNG TIN NGỮ CẢNH ===
+Lưu ý: Không tìm được kiến thức chuyên môn phù hợp cho câu hỏi này.
+Hãy trả lời dựa trên kiến thức chung về tâm lý học và sức khỏe tinh thần.
+Người dùng: Tôi đang cảm thấy căng thẳng và lo lắng về công việc. Bạn có thể tư vấn cách giảm stress không?
+Trợ lý:
+[PROMPT_BUILDER] ============================================================
+Prompt: Bạn là một trợ lý tâm lý chuyên nghiệp. Hãy lắng nghe, đồng cảm và phản hồi nhẹ nhàng. Tránh phán xét và đưa ra gợi ý hữu ích. Bắt đầu câu trả lời bằng 'Chào bạn' và chỉ đưa ra nội dung chính, không cần giải thích thêm hay kết luận.
+=== THÔNG TIN NGỮ CẢNH ===
+Lưu ý: Không tìm được kiến thức chuyên môn phù hợp cho câu hỏi này.
+Hãy trả lời dựa trên kiến thức chung về tâm lý học và sức khỏe tinh thần.
+Người dùng: Tôi đang cảm thấy căng thẳng và lo lắng về công việc. Bạn có thể tư vấn cách giảm stress không?
+Trợ lý:
+INFO:     42.1.70.128:0 - "POST /chat HTTP/1.1" 200 OK
+2025-08-02 21:32:38,456 INFO services.chatbot.response_generator: [LLM] G\u1ecdi API v\u1edbi prompt d�i 517 chars
+2025-08-02 21:33:58,588 INFO root: OPTIONS https://manual-infants-trinity-descending.trycloudflare.com/chat 0ms
+INFO:     42.1.70.128:0 - "OPTIONS /chat HTTP/1.1" 200 OK
+2025-08-02 21:33:58,699 INFO api: [chat] \U0001f4e8 Received history: []
+2025-08-02 21:33:58,700 INFO api: [chat] \U0001f4e8 Current user input: T�i c� tri\u1ec7u ch\u1ee9ng tr\u1ea7m c\u1ea3m, n�n l�m g�?
+2025-08-02 21:33:58,700 INFO api: [chat] \U0001f4e8 History length: 0
+2025-08-02 21:33:58,700 INFO api: [chat] \U0001f4e8 History type: <class 'list'>
+2025-08-02 21:33:58,700 INFO api: [chat] \U0001f4e8 History contains 0 user messages
+2025-08-02 21:33:58,700 INFO api: [chat] \U0001f6a6 Gating router - \u0111�nh gi� r\u1ee7i ro cho: 'T�i c� tri\u1ec7u ch\u1ee9ng tr\u1ea7m c\u1ea3m, n�n l�m g�?...'
+2025-08-02 21:33:58,742 INFO api: [chat] \U0001f6a6 Gating router result: risk_level='emergency', confidence=0.996
+2025-08-02 21:33:58,742 INFO api: [chat] \U0001f50d Semantic search v\u1edbi re-ranker cho: 'T�i c� tri\u1ec7u ch\u1ee9ng tr\u1ea7m c\u1ea3m, n�n l�m g�?...'
+2025-08-02 21:33:58,780 INFO httpx: HTTP Request: POST http://localhost:6333/collections/psychology_chunks/points/search "HTTP/1.1 200 OK"
+2025-08-02 21:33:58,782 INFO api: [chat] \U0001f4da Re-ranker t�m \u0111\u01b0\u1ee3c 0 \u0111o\u1ea1n knowledge c� \u0111\u1ed9 li�n quan cao
+Asking to truncate to max_length but no maximum length is provided and the model has no predefined maximum length. Default to no truncation.
+2025-08-02 21:33:59,000 INFO services.emergency_handler.handler: Emergency request from user anonymous
+2025-08-02 21:33:59,000 WARNING services.emergency_handler.staff_notifier: [ALERT] 2025-08-02 21:33:59 - User: anonymous - Message: Emergency request - Location: None, Contact: None...
+2025-08-02 21:33:59,000 INFO services.emergency_handler.staff_notifier: [ALERT] \u0110� g\u1eedi c\u1ea3nh b�o th�nh c�ng cho user anonymous
+2025-08-02 21:33:59,000 INFO api: [chat] \U0001f527 Building prompt from object: {"input": "T�i c� tri\u1ec7u ch\u1ee9ng tr\u1ea7m c\u1ea3m, n�n l�m g�?", "context": {"history": [], "mental_state": "normal", "sentiment_intensity": "1", "knowledge": [], "warning": "Y�u c\u1ea7u kh\u1ea9n c\u1ea5p \u0111� \u0111\u01b0\u1ee3c ghi nh\u1eadn. N...
+2025-08-02 21:33:59,000 INFO api: [chat] \u2705 Prompt built successfully (503 chars)
+2025-08-02 21:33:59,002 INFO root: POST https://manual-infants-trinity-descending.trycloudflare.com/chat 303ms
+[GATING_ROUTER] 🔍 Predict for: 'Tôi có triệu chứng trầm cảm, nên làm gì?...'
+[GATING_ROUTER] 📊 Probabilities: normal=0.000, risky=0.003, emergency=0.996
+[MESSAGE_ROUTER] 🚦 Routing decision:
+[MESSAGE_ROUTER] - threshold_safe: 0.9
+[MESSAGE_ROUTER] - threshold_risk: 0.5
+[MESSAGE_ROUTER] - confidence_emergency: 0.996
+[MESSAGE_ROUTER] ✅ Final decision: emergency (confidence: 0.996)
+⚠️ No initial results found from vector search
+[PROMPT_BUILDER] ✅ Prompt ngắn (503 chars), sử dụng trực tiếp
+[PROMPT_BUILDER] 📝 FINAL PROMPT:
+[PROMPT_BUILDER] ============================================================
+Bạn là một trợ lý tâm lý chuyên nghiệp. Hãy lắng nghe, đồng cảm và phản hồi nhẹ nhàng. Tránh phán xét và đưa ra gợi ý hữu ích. Bắt đầu câu trả lời bằng 'Chào bạn' và chỉ đưa ra nội dung chính, không cần giải thích thêm hay kết luận.
+=== THÔNG TIN NGỮ CẢNH ===
+- Trạng thái tâm lý: normal
+- Cảm xúc: 1
+Lưu ý: Không tìm được kiến thức chuyên môn phù hợp cho câu hỏi này.
+Hãy trả lời dựa trên kiến thức chung về tâm lý học và sức khỏe tinh thần.
+Người dùng: Tôi có triệu chứng trầm cảm, nên làm gì?
+Trợ lý:
+[PROMPT_BUILDER] ============================================================
+Prompt: Bạn là một trợ lý tâm lý chuyên nghiệp. Hãy lắng nghe, đồng cảm và phản hồi nhẹ nhàng. Tránh phán xét và đưa ra gợi ý hữu ích. Bắt đầu câu trả lời bằng 'Chào bạn' và chỉ đưa ra nội dung chính, không cần giải thích thêm hay kết luận.
+=== THÔNG TIN NGỮ CẢNH ===
+- Trạng thái tâm lý: normal
+- Cảm xúc: 1
+Lưu ý: Không tìm được kiến thức chuyên môn phù hợp cho câu hỏi này.
+Hãy trả lời dựa trên kiến thức chung về tâm lý học và sức khỏe tinh thần.
+Người dùng: Tôi có triệu chứng trầm cảm, nên làm gì?
+Trợ lý:
+INFO:     42.1.70.128:0 - "POST /chat HTTP/1.1" 200 OK
+2025-08-02 21:33:59,002 INFO services.chatbot.response_generator: [LLM] G\u1ecdi API v\u1edbi prompt d�i 503 chars
+2025-08-02 21:35:33,713 INFO api: [chat] \U0001f4e8 Received history: []
+2025-08-02 21:35:33,714 INFO api: [chat] \U0001f4e8 Current user input: c� m\u1ed9t c�i l� n\u1ebfu c\u1eadu c�ng ngh\u0129 nhi\u1ec1u v\u1ec1 n� th� c\u1eadu s\u1ebd c�ng c\u1ea3m th\u1ea5y n� l� m\u1ed9t v\u1ea5n \u0111\u1ec1 l\u1edbn, nh\u01b0ng c\u1eadu k l�m \u0111\u01b0\u1ee3c g�
+2025-08-02 21:35:33,714 INFO api: [chat] \U0001f4e8 History length: 0
+2025-08-02 21:35:33,714 INFO api: [chat] \U0001f4e8 History type: <class 'list'>
+2025-08-02 21:35:33,714 INFO api: [chat] \U0001f4e8 History contains 0 user messages
+2025-08-02 21:35:33,714 INFO api: [chat] \U0001f6a6 Gating router - \u0111�nh gi� r\u1ee7i ro cho: 'c� m\u1ed9t c�i l� n\u1ebfu c\u1eadu c�ng ngh\u0129 nhi\u1ec1u v\u1ec1 n� th� c\u1ead...'
+2025-08-02 21:35:33,824 INFO api: [chat] \U0001f6a6 Gating router result: risk_level='normal', confidence=0.985
+2025-08-02 21:35:33,824 INFO api: [chat] \U0001f50d Semantic search v\u1edbi re-ranker cho: 'c� m\u1ed9t c�i l� n\u1ebfu c\u1eadu c�ng ngh\u0129 nhi\u1ec1u v\u1ec1 n� th� c\u1ead...'
+2025-08-02 21:35:33,845 INFO httpx: HTTP Request: POST http://localhost:6333/collections/psychology_chunks/points/search "HTTP/1.1 200 OK"
+2025-08-02 21:35:33,845 INFO api: [chat] \U0001f4da Re-ranker t�m \u0111\u01b0\u1ee3c 0 \u0111o\u1ea1n knowledge c� \u0111\u1ed9 li�n quan cao
+2025-08-02 21:35:33,845 INFO api: [chat] \U0001f527 Building prompt from object: {"input": "c� m\u1ed9t c�i l� n\u1ebfu c\u1eadu c�ng ngh\u0129 nhi\u1ec1u v\u1ec1 n� th� c\u1eadu s\u1ebd c�ng c\u1ea3m th\u1ea5y n� l� m\u1ed9t v\u1ea5n \u0111\u1ec1 l\u1edbn, nh\u01b0ng c\u1eadu k l�m \u0111\u01b0\u1ee3c g�", "context": {"history": [], "knowledge": []}}...
+2025-08-02 21:35:33,847 INFO api: [chat] \u2705 Prompt built successfully (536 chars)
+2025-08-02 21:35:33,847 INFO root: POST https://manual-infants-trinity-descending.trycloudflare.com/chat 139ms
+[GATING_ROUTER] 🔍 Predict for: 'có một cái là nếu cậu càng nghĩ nhiều về nó thì cậ...'
+[GATING_ROUTER] 📊 Probabilities: normal=0.016, risky=0.969, emergency=0.015
+[MESSAGE_ROUTER] 🚦 Routing decision:
+[MESSAGE_ROUTER] - threshold_safe: 0.9
+[MESSAGE_ROUTER] - threshold_risk: 0.5
+[MESSAGE_ROUTER] - confidence_emergency: 0.015
+[MESSAGE_ROUTER] ✅ Final decision: normal (confidence: 0.985)
+⚠️ No initial results found from vector search
+[PROMPT_BUILDER] ✅ Prompt ngắn (536 chars), sử dụng trực tiếp
+[PROMPT_BUILDER] 📝 FINAL PROMPT:
+[PROMPT_BUILDER] ============================================================
+Bạn là một trợ lý tâm lý chuyên nghiệp. Hãy lắng nghe, đồng cảm và phản hồi nhẹ nhàng. Tránh phán xét và đưa ra gợi ý hữu ích. Bắt đầu câu trả lời bằng 'Chào bạn' và chỉ đưa ra nội dung chính, không cần giải thích thêm hay kết luận.
+=== THÔNG TIN NGỮ CẢNH ===
+Lưu ý: Không tìm được kiến thức chuyên môn phù hợp cho câu hỏi này.
+Hãy trả lời dựa trên kiến thức chung về tâm lý học và sức khỏe tinh thần.
+Người dùng: có một cái là nếu cậu càng nghĩ nhiều về nó thì cậu sẽ càng cảm thấy nó là một vấn đề lớn, nhưng cậu k làm được gì
+Trợ lý:
+[PROMPT_BUILDER] ============================================================
+Prompt: Bạn là một trợ lý tâm lý chuyên nghiệp. Hãy lắng nghe, đồng cảm và phản hồi nhẹ nhàng. Tránh phán xét và đưa ra gợi ý hữu ích. Bắt đầu câu trả lời bằng 'Chào bạn' và chỉ đưa ra nội dung chính, không cần giải thích thêm hay kết luận.
+=== THÔNG TIN NGỮ CẢNH ===
+Lưu ý: Không tìm được kiến thức chuyên môn phù hợp cho câu hỏi này.
+Hãy trả lời dựa trên kiến thức chung về tâm lý học và sức khỏe tinh thần.
+Người dùng: có một cái là nếu cậu càng nghĩ nhiều về nó thì cậu sẽ càng cảm thấy nó là một vấn đề lớn, nhưng cậu k làm được gì
+Trợ lý:
+INFO:     42.1.70.128:0 - "POST /chat HTTP/1.1" 200 OK
+2025-08-02 21:35:33,847 INFO services.chatbot.response_generator: [LLM] G\u1ecdi API v\u1edbi prompt d�i 536 chars
+2025-08-02 21:50:07,981 INFO root: OPTIONS https://manual-infants-trinity-descending.trycloudflare.com/chat 0ms
+INFO:     42.1.70.128:0 - "OPTIONS /chat HTTP/1.1" 200 OK
+2025-08-02 21:50:08,130 INFO api: [chat] \U0001f4e8 Received history: []
+2025-08-02 21:50:08,130 INFO api: [chat] \U0001f4e8 Current user input: L�m th\u1ebf n�o \u0111\u1ec3 c\u1ea3i thi\u1ec7n m\u1ed1i quan h\u1ec7 v\u1edbi ng\u01b0\u1eddi kh�c?
+2025-08-02 21:50:08,131 INFO api: [chat] \U0001f4e8 History length: 0
+2025-08-02 21:50:08,131 INFO api: [chat] \U0001f4e8 History type: <class 'list'>
+2025-08-02 21:50:08,131 INFO api: [chat] \U0001f4e8 History contains 0 user messages
+2025-08-02 21:50:08,132 INFO api: [chat] \U0001f6a6 Gating router - \u0111�nh gi� r\u1ee7i ro cho: 'L�m th\u1ebf n�o \u0111\u1ec3 c\u1ea3i thi\u1ec7n m\u1ed1i quan h\u1ec7 v\u1edbi ng\u01b0\u1eddi kh�...'
+2025-08-02 21:50:08,187 INFO api: [chat] \U0001f6a6 Gating router result: risk_level='normal', confidence=0.997
+2025-08-02 21:50:08,187 INFO api: [chat] \U0001f50d Semantic search v\u1edbi re-ranker cho: 'L�m th\u1ebf n�o \u0111\u1ec3 c\u1ea3i thi\u1ec7n m\u1ed1i quan h\u1ec7 v\u1edbi ng\u01b0\u1eddi kh�...'
+2025-08-02 21:50:08,220 INFO httpx: HTTP Request: POST http://localhost:6333/collections/psychology_chunks/points/search "HTTP/1.1 200 OK"
+2025-08-02 21:50:08,220 INFO api: [chat] \U0001f4da Re-ranker t�m \u0111\u01b0\u1ee3c 0 \u0111o\u1ea1n knowledge c� \u0111\u1ed9 li�n quan cao
+2025-08-02 21:50:08,220 INFO api: [chat] \U0001f527 Building prompt from object: {"input": "L�m th\u1ebf n�o \u0111\u1ec3 c\u1ea3i thi\u1ec7n m\u1ed1i quan h\u1ec7 v\u1edbi ng\u01b0\u1eddi kh�c?", "context": {"history": [], "knowledge": []}}...
+2025-08-02 21:50:08,220 INFO api: [chat] \u2705 Prompt built successfully (474 chars)
+2025-08-02 21:50:08,223 INFO root: POST https://manual-infants-trinity-descending.trycloudflare.com/chat 97ms
+[GATING_ROUTER] 🔍 Predict for: 'Làm thế nào để cải thiện mối quan hệ với người khá...'
+[GATING_ROUTER] 📊 Probabilities: normal=0.983, risky=0.013, emergency=0.003
+[MESSAGE_ROUTER] 🚦 Routing decision:
+[MESSAGE_ROUTER] - threshold_safe: 0.9
+[MESSAGE_ROUTER] - threshold_risk: 0.5
+[MESSAGE_ROUTER] - confidence_emergency: 0.003
+[MESSAGE_ROUTER] ✅ Final decision: normal (confidence: 0.997)
+⚠️ No initial results found from vector search
+[PROMPT_BUILDER] ✅ Prompt ngắn (474 chars), sử dụng trực tiếp
+[PROMPT_BUILDER] 📝 FINAL PROMPT:
+[PROMPT_BUILDER] ============================================================
+Bạn là một trợ lý tâm lý chuyên nghiệp. Hãy lắng nghe, đồng cảm và phản hồi nhẹ nhàng. Tránh phán xét và đưa ra gợi ý hữu ích. Bắt đầu câu trả lời bằng 'Chào bạn' và chỉ đưa ra nội dung chính, không cần giải thích thêm hay kết luận.
+=== THÔNG TIN NGỮ CẢNH ===
+Lưu ý: Không tìm được kiến thức chuyên môn phù hợp cho câu hỏi này.
+Hãy trả lời dựa trên kiến thức chung về tâm lý học và sức khỏe tinh thần.
+Người dùng: Làm thế nào để cải thiện mối quan hệ với người khác?
+Trợ lý:
+[PROMPT_BUILDER] ============================================================
+Prompt: Bạn là một trợ lý tâm lý chuyên nghiệp. Hãy lắng nghe, đồng cảm và phản hồi nhẹ nhàng. Tránh phán xét và đưa ra gợi ý hữu ích. Bắt đầu câu trả lời bằng 'Chào bạn' và chỉ đưa ra nội dung chính, không cần giải thích thêm hay kết luận.
+=== THÔNG TIN NGỮ CẢNH ===
+Lưu ý: Không tìm được kiến thức chuyên môn phù hợp cho câu hỏi này.
+Hãy trả lời dựa trên kiến thức chung về tâm lý học và sức khỏe tinh thần.
+Người dùng: Làm thế nào để cải thiện mối quan hệ với người khác?
+Trợ lý:
+INFO:     42.1.70.128:0 - "POST /chat HTTP/1.1" 200 OK
+2025-08-02 21:50:08,223 INFO services.chatbot.response_generator: [LLM] G\u1ecdi API v\u1edbi prompt d�i 474 chars
+2025-08-02 21:50:48,069 INFO api: [chat] \U0001f4e8 Received history: []
+2025-08-02 21:50:48,069 INFO api: [chat] \U0001f4e8 Current user input: Chia s\u1ebb m\u1ed9t s\u1ed1 k\u1ef9 thu\u1eadt th\u01b0 gi�n v� thi\u1ec1n \u0111\u1ecbnh \u0111\u01a1n gi\u1ea3n
+2025-08-02 21:50:48,070 INFO api: [chat] \U0001f4e8 History length: 0
+2025-08-02 21:50:48,070 INFO api: [chat] \U0001f4e8 History type: <class 'list'>
+2025-08-02 21:50:48,070 INFO api: [chat] \U0001f4e8 History contains 0 user messages
+2025-08-02 21:50:48,070 INFO api: [chat] \U0001f6a6 Gating router - \u0111�nh gi� r\u1ee7i ro cho: 'Chia s\u1ebb m\u1ed9t s\u1ed1 k\u1ef9 thu\u1eadt th\u01b0 gi�n v� thi\u1ec1n \u0111\u1ecbnh \u0111\u01a1n...'
+2025-08-02 21:50:48,180 INFO api: [chat] \U0001f6a6 Gating router result: risk_level='normal', confidence=0.999
+2025-08-02 21:50:48,181 INFO api: [chat] \U0001f50d Semantic search v\u1edbi re-ranker cho: 'Chia s\u1ebb m\u1ed9t s\u1ed1 k\u1ef9 thu\u1eadt th\u01b0 gi�n v� thi\u1ec1n \u0111\u1ecbnh \u0111\u01a1n...'
+2025-08-02 21:50:48,219 INFO httpx: HTTP Request: POST http://localhost:6333/collections/psychology_chunks/points/search "HTTP/1.1 200 OK"
+2025-08-02 21:50:48,219 INFO api: [chat] \U0001f4da Re-ranker t�m \u0111\u01b0\u1ee3c 0 \u0111o\u1ea1n knowledge c� \u0111\u1ed9 li�n quan cao
+2025-08-02 21:50:48,219 INFO api: [chat] \U0001f527 Building prompt from object: {"input": "Chia s\u1ebb m\u1ed9t s\u1ed1 k\u1ef9 thu\u1eadt th\u01b0 gi�n v� thi\u1ec1n \u0111\u1ecbnh \u0111\u01a1n gi\u1ea3n", "context": {"history": [], "knowledge": []}}...
+2025-08-02 21:50:48,219 INFO api: [chat] \u2705 Prompt built successfully (477 chars)
+2025-08-02 21:50:48,220 INFO root: POST https://manual-infants-trinity-descending.trycloudflare.com/chat 151ms
+[GATING_ROUTER] 🔍 Predict for: 'Chia sẻ một số kỹ thuật thư giãn và thiền định đơn...'
+[GATING_ROUTER] 📊 Probabilities: normal=0.000, risky=0.998, emergency=0.001
+[MESSAGE_ROUTER] 🚦 Routing decision:
+[MESSAGE_ROUTER] - threshold_safe: 0.9
+[MESSAGE_ROUTER] - threshold_risk: 0.5
+[MESSAGE_ROUTER] - confidence_emergency: 0.001
+[MESSAGE_ROUTER] ✅ Final decision: normal (confidence: 0.999)
+⚠️ No initial results found from vector search
+[PROMPT_BUILDER] ✅ Prompt ngắn (477 chars), sử dụng trực tiếp
+[PROMPT_BUILDER] 📝 FINAL PROMPT:
+[PROMPT_BUILDER] ============================================================
+Bạn là một trợ lý tâm lý chuyên nghiệp. Hãy lắng nghe, đồng cảm và phản hồi nhẹ nhàng. Tránh phán xét và đưa ra gợi ý hữu ích. Bắt đầu câu trả lời bằng 'Chào bạn' và chỉ đưa ra nội dung chính, không cần giải thích thêm hay kết luận.
+=== THÔNG TIN NGỮ CẢNH ===
+Lưu ý: Không tìm được kiến thức chuyên môn phù hợp cho câu hỏi này.
+Hãy trả lời dựa trên kiến thức chung về tâm lý học và sức khỏe tinh thần.
+Người dùng: Chia sẻ một số kỹ thuật thư giãn và thiền định đơn giản
+Trợ lý:
+[PROMPT_BUILDER] ============================================================
+Prompt: Bạn là một trợ lý tâm lý chuyên nghiệp. Hãy lắng nghe, đồng cảm và phản hồi nhẹ nhàng. Tránh phán xét và đưa ra gợi ý hữu ích. Bắt đầu câu trả lời bằng 'Chào bạn' và chỉ đưa ra nội dung chính, không cần giải thích thêm hay kết luận.
+=== THÔNG TIN NGỮ CẢNH ===
+Lưu ý: Không tìm được kiến thức chuyên môn phù hợp cho câu hỏi này.
+Hãy trả lời dựa trên kiến thức chung về tâm lý học và sức khỏe tinh thần.
+Người dùng: Chia sẻ một số kỹ thuật thư giãn và thiền định đơn giản
+Trợ lý:
+INFO:     42.1.70.128:0 - "POST /chat HTTP/1.1" 200 OK
+2025-08-02 21:50:48,221 INFO services.chatbot.response_generator: [LLM] G\u1ecdi API v\u1edbi prompt d�i 477 chars

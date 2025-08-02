@@ -47,7 +47,6 @@ ehthumbs.db
 Thumbs.db
 
 # Logs
-*.log
 logs/
 training.log
 
