@@ -34,5 +34,17 @@ class MentalStateHistory(Base):
     mental_state = Column(String)
     detected_at = Column(DateTime, default=datetime.utcnow)
 
+class Feedback(Base):
+    __tablename__ = 'feedback'
+    id = Column(Integer, primary_key=True)
+    session_id = Column(String, nullable=False)
+    user_input = Column(Text, nullable=False)
+    bot_response = Column(Text, nullable=False)
+    feedback_type = Column(String, nullable=False)  # 'like' or 'dislike'
+    user_feedback_text = Column(Text)  # Optional reason from user
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    risk_level = Column(String)  # Store risk level for analysis
+    emotion_label = Column(String)  # Store emotion for analysis
+
 def create_db():
     Base.metadata.create_all(bind=engine)

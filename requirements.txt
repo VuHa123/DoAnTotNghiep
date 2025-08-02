@@ -98,6 +98,7 @@ tqdm @ file:///croot/tqdm_1738943501192/work
 transformers==4.53.2
 triton==3.3.1
 trl==0.19.1
+pymongo==4.6.1
 truststore @ file:///croot/truststore_1736550121485/work
 typing_extensions @ file:///croot/typing_extensions_1734714854207/work
 tzdata==2025.2

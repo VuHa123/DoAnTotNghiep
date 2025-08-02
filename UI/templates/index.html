@@ -531,6 +531,122 @@
       backdrop-filter: blur(20px);
       border: 1px solid rgba(255, 255, 255, 0.3);
     }
+
+    /* Feedback styles */
+    .feedback-container {
+      margin-top: 16px;
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 12px;
+      border: 1px solid rgba(102, 126, 234, 0.2);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .feedback-question {
+      font-size: 14px;
+      color: #4a5568;
+      margin-bottom: 12px;
+      font-weight: 500;
+    }
+
+    .feedback-buttons {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .feedback-btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .feedback-btn.like {
+      background: linear-gradient(135deg, #48bb78, #38a169);
+      color: white;
+    }
+
+    .feedback-btn.like:hover {
+      background: linear-gradient(135deg, #38a169, #2f855a);
+      transform: translateY(-1px);
+    }
+
+    .feedback-btn.dislike {
+      background: linear-gradient(135deg, #f56565, #e53e3e);
+      color: white;
+    }
+
+    .feedback-btn.dislike:hover {
+      background: linear-gradient(135deg, #e53e3e, #c53030);
+      transform: translateY(-1px);
+    }
+
+    .feedback-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .feedback-textarea {
+      margin-top: 12px;
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 80px;
+      background: white;
+    }
+
+    .feedback-textarea:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .feedback-submit {
+      margin-top: 8px;
+      padding: 8px 16px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+
+    .feedback-submit:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .feedback-submit:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .feedback-thanks {
+      color: #48bb78;
+      font-size: 14px;
+      font-weight: 500;
+      margin-top: 8px;
+    }
+
+    .feedback-hidden {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -661,8 +777,28 @@
     message.className = 'message bot';
     message.id = 'typing-message';
 
+<<<<<<< HEAD
     const messageInner = document.createElement('div');
     messageInner.className = 'message-inner';
+=======
+    function createMessage(role, content, sessionId = null, userInput = null, riskLevel = null, emotionLabel = null) {
+      hideWelcomeScreen();
+      
+      const message = document.createElement('div');
+      message.className = `message ${role}`;
+      
+      const messageInner = document.createElement('div');
+      messageInner.className = 'message-inner';
+      
+      const avatar = document.createElement('div');
+      avatar.className = `avatar ${role}`;
+      avatar.textContent = role === 'user' ? 'B' : 'AI';
+      
+      const contentDiv = document.createElement('div');
+      contentDiv.className = 'message-content';
+      
+      let processedContent = content;
+>>>>>>> 88fc445 (update index.html)
 
     const avatar = document.createElement('div');
     avatar.className = 'avatar bot';
@@ -701,7 +837,295 @@
     const prompt = promptInput.value.trim();
     if (!prompt || isTyping) return;
 
+<<<<<<< HEAD
     isTyping = true;
+=======
+      // Xử lý xuống dòng cho labels
+      processedContent = processedContent.replace(/\*\*([^*]+):\*\*/g, '\n\n**$1:**');
+      
+      // Xử lý xuống dòng cho các câu kết thúc cụ thể (chỉ những câu này mới xuống dòng)
+      processedContent = processedContent.replace(/(?<!\n)(Hy vọng những gợi ý này|Tôi hy vọng những gợi ý này|Nếu bạn cần thêm hỗ trợ|Hãy cho tôi biết|Vui lòng cho tôi biết|Cảm ơn bạn đã chia sẻ|Xin lỗi vì|Đừng ngần ngại liên hệ)/g, '\n\n$1');
+
+      contentDiv.innerHTML = marked.parse(processedContent);
+      
+      messageInner.appendChild(avatar);
+      messageInner.appendChild(contentDiv);
+      
+      // Thêm feedback container cho tin nhắn bot
+      if (role === 'bot' && sessionId && userInput) {
+        const feedbackContainer = createFeedbackContainer(sessionId, userInput, content, riskLevel, emotionLabel);
+        messageInner.appendChild(feedbackContainer);
+      }
+      
+      message.appendChild(messageInner);
+      chatBox.appendChild(message);
+      chatBox.scrollTop = chatBox.scrollHeight;
+      return contentDiv;
+    }
+
+    function createFeedbackContainer(sessionId, userInput, botResponse, riskLevel, emotionLabel) {
+      const container = document.createElement('div');
+      container.className = 'feedback-container';
+      
+      const question = document.createElement('div');
+      question.className = 'feedback-question';
+      question.textContent = 'Bạn có hài lòng với phản hồi này không?';
+      
+      const buttons = document.createElement('div');
+      buttons.className = 'feedback-buttons';
+      
+      const likeBtn = document.createElement('button');
+      likeBtn.className = 'feedback-btn like';
+      likeBtn.innerHTML = '👍 Hài lòng';
+      likeBtn.onclick = () => submitFeedback(sessionId, userInput, botResponse, 'like', riskLevel, emotionLabel, container);
+      
+      const dislikeBtn = document.createElement('button');
+      dislikeBtn.className = 'feedback-btn dislike';
+      dislikeBtn.innerHTML = '👎 Không hài lòng';
+      dislikeBtn.onclick = () => showFeedbackForm(sessionId, userInput, botResponse, 'dislike', riskLevel, emotionLabel, container);
+      
+      buttons.appendChild(likeBtn);
+      buttons.appendChild(dislikeBtn);
+      
+      container.appendChild(question);
+      container.appendChild(buttons);
+      
+      return container;
+    }
+
+    function showFeedbackForm(sessionId, userInput, botResponse, feedbackType, riskLevel, emotionLabel, container) {
+      // Ẩn nút feedback
+      const buttons = container.querySelector('.feedback-buttons');
+      buttons.style.display = 'none';
+      
+      // Tạo form nhập lý do
+      const form = document.createElement('div');
+      form.className = 'feedback-form';
+      
+      const textarea = document.createElement('textarea');
+      textarea.className = 'feedback-textarea';
+      textarea.placeholder = 'Vui lòng cho biết lý do bạn không hài lòng (tùy chọn)...';
+      
+      const submitBtn = document.createElement('button');
+      submitBtn.className = 'feedback-submit';
+      submitBtn.textContent = 'Gửi phản hồi';
+      submitBtn.onclick = () => {
+        const feedbackText = textarea.value.trim();
+        submitFeedback(sessionId, userInput, botResponse, feedbackType, riskLevel, emotionLabel, container, feedbackText);
+      };
+      
+      form.appendChild(textarea);
+      form.appendChild(submitBtn);
+      container.appendChild(form);
+    }
+
+    async function submitFeedback(sessionId, userInput, botResponse, feedbackType, riskLevel, emotionLabel, container, feedbackText = '') {
+      try {
+        // Disable tất cả nút trong container
+        const buttons = container.querySelectorAll('button');
+        buttons.forEach(btn => btn.disabled = true);
+        
+        const response = await fetch('/feedback', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            session_id: sessionId,
+            user_input: userInput,
+            bot_response: botResponse,
+            feedback_type: feedbackType,
+            user_feedback_text: feedbackText || null,
+            risk_level: riskLevel || null,
+            emotion_label: emotionLabel || null
+          })
+        });
+        
+        if (response.ok) {
+          // Hiển thị thông báo cảm ơn
+          container.innerHTML = '<div class="feedback-thanks">Cảm ơn bạn đã đưa ra phản hồi! 💚</div>';
+        } else {
+          throw new Error('Failed to submit feedback');
+        }
+      } catch (error) {
+        console.error('Error submitting feedback:', error);
+        // Hiển thị lại nút feedback nếu có lỗi
+        const buttons = container.querySelector('.feedback-buttons');
+        if (buttons) {
+          buttons.style.display = 'flex';
+          buttons.querySelectorAll('button').forEach(btn => btn.disabled = false);
+        }
+      }
+    }
+
+    function showTypingIndicator() {
+      hideWelcomeScreen();
+      
+      const message = document.createElement('div');
+      message.className = 'message bot';
+      message.id = 'typing-message';
+      
+      const messageInner = document.createElement('div');
+      messageInner.className = 'message-inner';
+      
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar bot';
+      avatar.textContent = 'AI';
+      
+      const contentDiv = document.createElement('div');
+      contentDiv.className = 'message-content';
+      contentDiv.innerHTML = '<div class="typing-container"><div class="typing-indicator"></div><div class="typing-indicator"></div><div class="typing-indicator"></div></div>';
+      
+      messageInner.appendChild(avatar);
+      messageInner.appendChild(contentDiv);
+      message.appendChild(messageInner);
+      chatBox.appendChild(message);
+      chatBox.scrollTop = chatBox.scrollHeight;
+      return message;
+    }
+
+    function useExample(text) {
+      promptInput.value = text;
+      promptInput.style.height = 'auto';
+      promptInput.style.height = Math.min(promptInput.scrollHeight, 200) + 'px';
+      sendBtn.disabled = false;
+      promptInput.focus();
+    }
+
+    function clearChat() {
+      chatBox.innerHTML = '';
+      showWelcomeScreen();
+      promptInput.value = '';
+      promptInput.style.height = 'auto';
+      sendBtn.disabled = true;
+      isTyping = false;
+      chatHistory = []; // Clear user message history
+      sessionId = "session_" + Date.now();
+      console.log("New session started:", sessionId);
+    }
+
+    async function sendMessage() {
+      const prompt = promptInput.value.trim();
+      if (!prompt || isTyping || isProcessing) return;
+
+      // Prevent multiple requests
+      if (isTyping || isProcessing) {
+        console.log("Already processing, ignoring request");
+        return;
+      }
+
+      isTyping = true;
+      isProcessing = true;
+      sendBtn.disabled = true;
+
+      // Show user message
+      createMessage('user', prompt);
+
+      // Show typing indicator
+      const typingIndicator = showTypingIndicator();
+
+      // Reset input
+      promptInput.value = "";
+      promptInput.style.height = 'auto';
+
+      try {
+        // Debug: Log what we're sending
+        console.log("Current chatHistory before sending:", chatHistory);
+        console.log("Current prompt:", prompt);
+        
+        // Only send user messages as history (not bot responses)
+        // Don't include the current user message in history
+        const requestBody = {
+          user_input: prompt,
+          history: chatHistory.slice(-5), // Keep last 5 user messages for context
+          session_id: sessionId
+        };
+        console.log("Sending request with history:", requestBody.history);
+        console.log("Full request body:", requestBody);
+        
+        // Fetch response from API gateway (send history BEFORE adding current message)
+        const response = await fetch(apiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        // Debug: Log the raw response
+        console.log("Raw bot response:", data.bot_response);
+        
+        // Add only user message to history AFTER getting response
+        // Don't add bot response to history
+        chatHistory.push(prompt);
+        
+        // Build response content with additional info
+        let responseContent = cleanResponseText(data.bot_response);
+        
+        // Debug: Log processed content
+        console.log("Processed response content:", responseContent);
+        
+        // Add risk level indicator if not normal
+        if (data.risk_level && data.risk_level !== "normal") {
+          const riskEmoji = data.risk_level === "emergency" ? "🚨" : "⚠️";
+          responseContent = `${riskEmoji} **${data.risk_level.toUpperCase()}**\n\n${responseContent}`;
+        }
+        
+        // Add suggestion if available
+        if (data.suggestion) {
+          responseContent += `\n\n---\n\n${data.suggestion}`;
+        }
+        
+        // Debug: Log final processed content
+        console.log("Final processed content:", responseContent);
+        
+        // Remove typing indicator and create bot message with raw content
+        typingIndicator.remove();
+        const botMsg = createMessage('bot', responseContent, data.session_id, prompt, data.risk_level, data.emotion_label);
+        
+        // Scroll to bottom
+        chatBox.scrollTop = chatBox.scrollHeight;
+        
+        // Highlight code blocks
+        document.querySelectorAll('pre code').forEach(hljs.highlightElement);
+        
+        // Log additional info to console for monitoring
+        console.log("Chat Response:", {
+          session_id: data.session_id,
+          risk_level: data.risk_level,
+          confidence: data.confidence,
+          emotion_label: data.emotion_label,
+          knowledge_count: data.knowledge ? data.knowledge.length : 0
+        });
+        
+      } catch (error) {
+        const errorMsg = createMessage('bot', '**Lỗi:** Không thể kết nối với máy chủ. Vui lòng thử lại sau.');
+        console.error('Error:', error);
+      } finally {
+        isTyping = false;
+        isProcessing = false;
+        sendBtn.disabled = !promptInput.value.trim();
+      }
+    }
+
+    sendBtn.addEventListener("click", sendMessage);
+
+    // Handle Enter key
+    promptInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        if (!isTyping && !isProcessing) { // Only send if not already processing
+          sendMessage();
+        }
+      }
+    });
+
+    // Initial setup
+>>>>>>> 88fc445 (update index.html)
     sendBtn.disabled = true;
 
     createMessage('user', prompt);

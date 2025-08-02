@@ -8,6 +8,7 @@ from typing import List, Optional
 import uvicorn
 import logging
 import time
+import uuid
 
 # Add parent directory to path for imports
 sys.path.append(str(Path(__file__).parent.parent))
@@ -35,6 +36,9 @@ spec.loader.exec_module(response_generator)
 extract_main_response = response_generator.extract_main_response
 final_cleanup = response_generator.final_cleanup
 
+# Import MongoDB feedback service
+from services.mongodb_feedback_service import mongodb_feedback_service
+
 # Cấu hình logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -49,6 +53,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 class ChatRequest(BaseModel):
     user_input: str
     history: Optional[List[str]] = []
@@ -60,6 +65,16 @@ class ChatResponse(BaseModel):
     risk_level: str = "normal"
     confidence: float = 0.0
     suggestion: str = ""
+    session_id: Optional[str] = None
+
+class FeedbackRequest(BaseModel):
+    session_id: str
+    user_input: str
+    bot_response: str
+    feedback_type: str  # 'like' or 'dislike'
+    user_feedback_text: Optional[str] = None
+    risk_level: Optional[str] = None
+    emotion_label: Optional[str] = None
 
 class EmergencyRequest(BaseModel):
     user_id: str
@@ -70,8 +85,12 @@ class EmergencyRequest(BaseModel):
 @app.post("/chat", response_model=ChatResponse)
 async def handle_chat(req: ChatRequest):
     user_input = req.user_input
+    
+    # Tạo session_id nếu chưa có
+    session_id = req.session_id or f"session_{uuid.uuid4().hex[:8]}"
 
     print("User input:", user_input)
+    print("Session ID:", session_id)
     
     try:
         # Gọi Model Server
@@ -95,79 +114,98 @@ async def handle_chat(req: ChatRequest):
             
             return ChatResponse(
                 bot_response=final_response,
+                session_id=session_id
             )
         else:
             logger.error(f"Model Server error: {response.status_code}")
             return ChatResponse(
                 bot_response="Xin lỗi, tôi gặp lỗi khi xử lý yêu cầu của bạn. Vui lòng thử lại.",
+                session_id=session_id
             )
             
     except Exception as e:
         logger.error(f"Error in chat endpoint: {e}")
         return ChatResponse(
             bot_response="Xin lỗi, tôi gặp lỗi khi xử lý yêu cầu của bạn. Vui lòng thử lại.",
+            session_id=session_id
         )
-#     """
-#     Enhanced chat handler with comprehensive risk assessment
-#     LƯU Ý: Mọi request chat đều PHẢI routing qua Gating Router trước khi xử lý tiếp!
-#     Flow:
-#       1. Nhận request từ frontend
-#       2. Gọi Gating Router để xác định risk_level (bình thường, có vấn đề, khẩn cấp)
-#       3. Tùy risk_level, gọi các service phù hợp (LLaMA, Sentiment, Mental, Emergency...)
-#     """
-#     try:
-#         logger.info(f"Received chat request: {req.user_input[:50]}...")
-#         # BƯỚC QUAN TRỌNG: Routing qua Gating Router để xác định risk_level
-#         risk_level, confidence = router.route(req.user_input)
-#         # Chuẩn hóa input cho các service
-#         chat_input = ChatServiceInput(
-#             user_message=req.user_input,
-#             sentiment=None,
-#             mental_state=None,
-#             risk_level=risk_level
-#         )
-#         # Build prompt object for generate_reply
-#         prompt_obj = {
-#             "instruction": "Bạn là một chatbot hỗ trợ tâm lý. Hãy phản hồi nhẹ nhàng và cảm thông.",
-#             "input": req.user_input,
-#             "context": {
-#                 "history": req.history[-5:] if req.history else [],
-#                 "risk_level": risk_level
-#             }
-#         }
-#         if risk_level == "normal":
-#             # Low risk: use simple prompt
-#             reply = generate_reply(req.user_input, req.history, sentiment="", mental_state="")
-#             update_context(req.history, req.user_input, sentiment="", mental_state="", session_id=req.session_id)
-#             return ChatResponse(
-#                 bot_response=reply,
-#                 risk_level=risk_level,
-#                 confidence=confidence
-#             )
-#         elif risk_level == "risky":
-#             # Medium risk: deeper analysis
-#             mental_state_obj = detect_mental_state(req.user_input)
-#             sentiment_obj = detect_sentiment_label(req.user_input)
-#             update_context(req.history, req.user_input, sentiment_obj.sentiment, mental_state_obj.mental_state, session_id=req.session_id)
-#             reply = generate_reply(req.user_input, req.history, sentiment_obj.sentiment, mental_state_obj.mental_state)
-#             return ChatResponse(
-#                 bot_response=reply,
-#                 risk_level=risk_level,
-#                 confidence=confidence,
-#                 emotion_label=sentiment_obj.sentiment
-#             )
-#         else:  # emergency
-#             # High risk: emergency handling
-#             update_context(req.history, req.user_input, sentiment="emergency", mental_state="emergency", session_id=req.session_id)
-#             emergency_result = emergency_handler.check_emergency(req.session_id or "anonymous", req.user_input)
-#             return ChatResponse(
-#                 bot_response=emergency_result.message,
-#                 risk_level=risk_level,
-#                 confidence=confidence
-#             )
-#     except Exception as e:
-#         logger.error(f"Error in chat endpoint: {e}")
-#         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.post("/feedback")
+async def handle_feedback(req: FeedbackRequest):
+    """
+    Xử lý feedback từ người dùng
+    """
+    try:
+        logger.info(f"Received feedback: {req.feedback_type} for session {req.session_id}")
+        
+        result = mongodb_feedback_service.save_feedback(
+            session_id=req.session_id,
+            user_input=req.user_input,
+            bot_response=req.bot_response,
+            feedback_type=req.feedback_type,
+            user_feedback_text=req.user_feedback_text,
+            risk_level=req.risk_level,
+            emotion_label=req.emotion_label
+        )
+        
+        if result["status"] == "success":
+            return {
+                "status": "success",
+                "message": "Cảm ơn bạn đã đưa ra phản hồi!",
+                "feedback_id": result["feedback_id"]
+            }
+        else:
+            raise HTTPException(status_code=500, detail=result["message"])
+            
+    except Exception as e:
+        logger.error(f"Error in feedback endpoint: {e}")
+        raise HTTPException(status_code=500, detail=f"Lỗi khi xử lý feedback: {str(e)}")
+
+@app.get("/feedback/stats")
+async def get_feedback_stats(session_id: Optional[str] = None):
+    """
+    Lấy thống kê feedback
+    """
+    try:
+        stats = mongodb_feedback_service.get_feedback_stats(session_id)
+        return stats
+    except Exception as e:
+        logger.error(f"Error getting feedback stats: {e}")
+        raise HTTPException(status_code=500, detail=f"Lỗi khi lấy thống kê: {str(e)}")
+
+@app.get("/feedback/dislikes")
+async def get_dislike_feedback(limit: int = 50):
+    """
+    Lấy danh sách feedback dislike để phân tích
+    """
+    try:
+        dislikes = mongodb_feedback_service.get_dislike_feedback(limit)
+        return {
+            "dislikes": dislikes,
+            "count": len(dislikes)
+        }
+    except Exception as e:
+        logger.error(f"Error getting dislike feedback: {e}")
+        raise HTTPException(status_code=500, detail=f"Lỗi khi lấy feedback: {str(e)}")
+
+@app.post("/feedback/export")
+async def export_feedback(filepath: str = "feedback_data.jsonl"):
+    """
+    Xuất feedback ra file JSONL để fine-tuning
+    """
+    try:
+        success = mongodb_feedback_service.export_feedback_to_jsonl(filepath)
+        if success:
+            return {
+                "status": "success",
+                "message": f"Đã xuất feedback ra file {filepath}",
+                "filepath": filepath
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Lỗi khi xuất feedback")
+    except Exception as e:
+        logger.error(f"Error exporting feedback: {e}")
+        raise HTTPException(status_code=500, detail=f"Lỗi khi xuất feedback: {str(e)}")
 
 # # Emergency endpoint:Xử lý khẩn cấp.
 # @app.post("/emergency")
