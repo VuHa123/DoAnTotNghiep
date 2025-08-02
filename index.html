@@ -639,17 +639,12 @@
 
     const contentDiv = document.createElement('div');
     contentDiv.className = 'message-content';
-    let processedContent = content;
 
-    processedContent = processedContent.replace(/\*\*([^*]+):\*\*/g, '\n\n**$1:**');
-
-    processedContent = processedContent.replace(/(\d+\.\s+[^\n]+)/g, '\n$1');
-   
-    processedContent = processedContent.replace(/(?<!\*)\* ([^*\n]+)/g, '\n* $1');
-
-    processedContent = processedContent.replace(/(?<!\n)- ([^\n]+)/g, '\n- $1');
-
-    contentDiv.innerHTML = marked.parse(processedContent);
+    if (role === 'user') {
+      contentDiv.innerHTML = marked.parse(content);
+    } else {
+      contentDiv.innerHTML = content;
+    }
 
     messageInner.appendChild(avatar);
     messageInner.appendChild(contentDiv);

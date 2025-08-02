@@ -148,10 +148,14 @@ def build_prompt_from_object(obj: dict, include_template=True, minimal_mode: boo
             desc = label_desc["sentiment_intensity_label"].get(str(sentiment))
             if desc:
                 context_lines.append(f"  → {desc}")
-    if knowledge:
+    if knowledge and len(knowledge) > 0:
         context_lines.append("Kiến thức liên quan:")
         for idx, chunk in enumerate(knowledge, 1):
             context_lines.append(f"[{idx}] {chunk}")
+    else:
+        # Thêm thông báo khi không có knowledge phù hợp
+        context_lines.append("Lưu ý: Không tìm được kiến thức chuyên môn phù hợp cho câu hỏi này.")
+        context_lines.append("Hãy trả lời dựa trên kiến thức chung về tâm lý học và sức khỏe tinh thần.")
     if history:
         context_lines.append("Lịch sử hội thoại (các tin nhắn trước đó của người dùng):")
         for i, user_msg in enumerate(history, 1):

@@ -89,7 +89,8 @@ class SemanticSearchRequest(BaseModel):
 class SemanticSearchResponse(BaseModel):
     results: list
 
-indexer = SemanticIndexer()
+# Khởi tạo semantic indexer với re-ranker
+indexer = SemanticIndexer(use_reranker=True, reranker_type="cross_encoder")
 
 # Health check endpoint: Kiểm tra trạng thái API Gateway.
 
@@ -152,24 +153,28 @@ async def handle_chat(req: ChatRequest):
         sentiment_obj = None
         mental_state_obj = None
         warning = None
-        # 2. Semantic search Qdrant với lọc theo độ tương đồng
-        knowledge_chunks = indexer.query(user_message, top_k=5)  # Lấy nhiều hơn để lọc
-        # Lọc knowledge theo độ tương đồng > 80%
-        filtered_chunks = indexer.filter_knowledge_by_similarity(
-            user_input=user_message, 
-            knowledge_chunks=knowledge_chunks, 
-            similarity_threshold=0.8
+        # 2. Semantic search với re-ranker để cải thiện độ chính xác
+        logger.info(f"[chat] 🔍 Semantic search với re-ranker cho: '{user_message[:50]}...'")
+        knowledge_chunks = indexer.query_with_reranker(
+            query=user_message, 
+            top_k=5, 
+            relevance_threshold=0.6
         )
-        knowledge_texts = [chunk.get("chunk_text", "") for chunk in filtered_chunks]
-        knowledge_similarity_scores = [chunk.get("similarity_score", 0.0) for chunk in filtered_chunks]
-        logger.info(f"[chat] 📚 Tìm được {len(knowledge_chunks)} đoạn knowledge, lọc còn {len(knowledge_texts)} đoạn có độ tương đồng > 80%")
+        
+        # Lấy thông tin từ kết quả re-ranked
+        knowledge_texts = [chunk.get("chunk_text", "") for chunk in knowledge_chunks]
+        knowledge_similarity_scores = [chunk.get("rerank_score", chunk.get("score", 0.0)) for chunk in knowledge_chunks]
+        
+        logger.info(f"[chat] 📚 Re-ranker tìm được {len(knowledge_chunks)} đoạn knowledge có độ liên quan cao")
+        if knowledge_chunks:
+            logger.info(f"[chat] 📊 Điểm re-rank: {[f'{score:.3f}' for score in knowledge_similarity_scores]}")
         # 3. Build prompt object cho LLM
         if risk_level == "normal":
             prompt_obj = {
                 "input": user_message,
                 "context": {
                     "history": req.history[-1:] if req.history else [],
-                    "knowledge": knowledge_texts[:1]
+                    "knowledge": knowledge_texts if knowledge_texts else []  # Trả về rỗng nếu không có knowledge
                 }
             }
         elif risk_level == "risky":
@@ -181,7 +186,7 @@ async def handle_chat(req: ChatRequest):
                     "history": req.history[-2:] if req.history else [],
                     "mental_state": getattr(mental_state_obj, 'mental_state', ''),
                     "sentiment_intensity": getattr(sentiment_obj, 'sentiment', ''),
-                    "knowledge": knowledge_texts
+                    "knowledge": knowledge_texts if knowledge_texts else []  # Trả về rỗng nếu không có knowledge
                 }
             }
         elif risk_level == "emergency":
@@ -199,7 +204,7 @@ async def handle_chat(req: ChatRequest):
                     "history": req.history[-2:] if req.history else [],
                     "mental_state": getattr(mental_state_obj, 'mental_state', ''),
                     "sentiment_intensity": getattr(sentiment_obj, 'sentiment', ''),
-                    "knowledge": knowledge_texts,
+                    "knowledge": knowledge_texts if knowledge_texts else [],  # Trả về rỗng nếu không có knowledge
                     "warning": warning
                 }
             }
@@ -208,7 +213,7 @@ async def handle_chat(req: ChatRequest):
                 "input": user_message,
                 "context": {
                     "history": req.history[-1:] if req.history else [],
-                    "knowledge": knowledge_texts[:1]
+                    "knowledge": knowledge_texts if knowledge_texts else []  # Trả về rỗng nếu không có knowledge
                 }
             }
         # 4. Build prompt từ context
@@ -275,11 +280,20 @@ async def emergency_endpoint(request: EmergencyRequest):
         logger.error(f"Error in emergency endpoint: {e}")
         raise HTTPException(status_code=500, detail=f"Emergency handling failed: {str(e)}")
 
-# Semantic search endpoint
+# Semantic search endpoint với re-ranker
 @app.post("/semantic_search", response_model=SemanticSearchResponse)
 async def semantic_search(req: SemanticSearchRequest):
     try:
-        results = indexer.query(req.query, top_k=req.top_k)
+        logger.info(f"[semantic_search] 🔍 Query: '{req.query[:50]}...' with top_k={req.top_k}")
+        
+        # Sử dụng re-ranker để có kết quả chính xác hơn
+        results = indexer.query_with_reranker(
+            query=req.query, 
+            top_k=req.top_k, 
+            relevance_threshold=0.5
+        )
+        
+        logger.info(f"[semantic_search] ✅ Found {len(results)} relevant results")
         return SemanticSearchResponse(results=results)
     except Exception as e:
         logger.error(f"Error in semantic_search endpoint: {e}")

@@ -1,0 +1,20 @@
+# Requirements cho Re-ranker
+# Các dependencies cần thiết cho Cross-Encoder và Hybrid Re-ranker
+
+# Core dependencies đã có trong requirements.txt chính
+# sentence-transformers==3.0.0
+# torch==2.7.1
+# numpy==2.3.1
+# scikit-learn==1.5.2
+
+# Additional dependencies cho re-ranker
+dataclasses-json>=0.5.7
+typing-extensions>=4.0.0
+
+# Optional: để tối ưu performance
+# accelerate>=0.20.0  # Đã có trong requirements.txt chính
+# bitsandbytes>=0.39.0  # Đã có trong requirements.txt chính
+
+# Development dependencies cho testing
+pytest>=7.0.0
+pytest-asyncio>=0.21.0 
