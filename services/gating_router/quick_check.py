@@ -46,8 +46,11 @@ class QuickCheckModel:
         
         # Convert to dict
         proba = probs.cpu().numpy()[0]
-        return {
+        result = {
             "normal": float(proba[0]),
             "risky": float(proba[1]),
             "emergency": float(proba[2])
         }
+        print(f"[GATING_ROUTER] 🔍 Predict for: '{text[:50]}...'")
+        print(f"[GATING_ROUTER] 📊 Probabilities: normal={result['normal']:.3f}, risky={result['risky']:.3f}, emergency={result['emergency']:.3f}")
+        return result

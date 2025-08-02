@@ -123,7 +123,7 @@ def validate_cleaned_text(text: str) -> bool:
 def call_gemini_llm(prompt: str) -> str:
     headers = {"Content-Type": "application/json"}
     payload = {"prompt": prompt}
-    logger.info(f"[LLM PROMPT] {prompt}")
+    logger.info(f"[LLM] Gọi API với prompt dài {len(prompt)} chars")
     start_time = time.time()
     try:
         # Giảm timeout xuống 15 giây để tăng tốc độ
@@ -150,6 +150,9 @@ def call_gemini_llm(prompt: str) -> str:
                         # Làm sạch token đặc biệt nếu có
                         response_text = clean_response(response_text)
                         
+                        # Trích xuất phần nội dung chính từ "Chào bạn..."
+                        response_text = extract_main_response(response_text)
+                        
                         # Kiểm tra chất lượng sau khi clean
                         if not validate_cleaned_text(response_text):
                             logger.warning("⚠️ Response vẫn còn ký tự lạ sau khi clean")
@@ -171,6 +174,9 @@ def call_gemini_llm(prompt: str) -> str:
                 
                 # Làm sạch token đặc biệt nếu có
                 response_text = clean_response(response_text)
+                
+                # Trích xuất phần nội dung chính từ "Chào bạn..."
+                response_text = extract_main_response(response_text)
                 
                 # Kiểm tra chất lượng sau khi clean
                 if not validate_cleaned_text(response_text):
@@ -194,3 +200,38 @@ def call_gemini_llm(prompt: str) -> str:
     except Exception as e:
         logger.error(f"❌ Custom LLM API lỗi không xác định: {e}")
         return f"[Lỗi không xác định: {e}]"
+
+
+def extract_main_response(text: str) -> str:
+    """
+    Trích xuất phần nội dung chính từ response của LLM, bắt đầu từ "Chào bạn..."
+    Loại bỏ các phần giải thích thêm và chỉ giữ lại phần nội dung chính.
+    """
+    if not isinstance(text, str):
+        return ""
+    
+    # Pattern 1: Tìm phần trong dấu ngoặc kép sau "Chào bạn"
+    chao_ban_quote_pattern = re.compile(r'Chào bạn[^"]*"([^"]*)"', re.IGNORECASE | re.DOTALL)
+    match = chao_ban_quote_pattern.search(text)
+    
+    if match:
+        return match.group(1).strip()
+    
+    # Pattern 2: Tìm phần từ "Chào bạn" đến hết (không có dấu ngoặc kép)
+    chao_ban_pattern = re.compile(r'(Chào bạn.*?)(?=\n\n|\nTôi hy vọng|\nNếu bạn|$)', re.IGNORECASE | re.DOTALL)
+    match = chao_ban_pattern.search(text)
+    
+    if match:
+        return match.group(1).strip()
+    
+    # Pattern 3: Tìm phần trong dấu ngoặc kép đầu tiên
+    quote_pattern = re.compile(r'"([^"]*)"', re.DOTALL)
+    quote_match = quote_pattern.search(text)
+    
+    if quote_match:
+        return quote_match.group(1).strip()
+    
+    # Pattern 4: Nếu không có pattern nào khớp, trả về text đã clean
+    cleaned_text = clean_response(text)
+    
+    return cleaned_text

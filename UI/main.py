@@ -15,7 +15,8 @@ sys.path.append(str(Path(__file__).parent.parent))
 # from services.gating_router.router import MessageRouter
 # from services.mental_state_classifier.classifer import detect_mental_state
 # from services.setiment_analysis.analyzer import detect_sentiment_label
-# from services.chatbot.bot_service import generate_reply
+import requests
+import re
 # from services.emergency_handler.handler import EmergencyHandler
 # from services.context_tracking.tracker import update_context
 # from api_gateway.chatbot_api import router as chatbot_router
@@ -93,14 +94,90 @@ class EmergencyRequest(BaseModel):
 #         raise HTTPException(status_code=500, detail="Service unavailable")
 
 # Main chat endpoint:  Nhận message từ frontend, xử lý toàn bộ luồng (gọi Gating Router, các service, Model Server...).
+def extract_main_response(text: str) -> str:
+    """
+    Trích xuất phần nội dung chính từ response của LLM, bắt đầu từ "Chào bạn..."
+    Loại bỏ các phần giải thích thêm và chỉ giữ lại phần nội dung chính.
+    """
+    if not isinstance(text, str):
+        return ""
+    
+    # Pattern 1: Tìm phần trong dấu ngoặc kép sau "Chào bạn"
+    chao_ban_quote_pattern = re.compile(r'Chào bạn[^"]*"([^"]*)"', re.IGNORECASE | re.DOTALL)
+    match = chao_ban_quote_pattern.search(text)
+    
+    if match:
+        return match.group(1).strip()
+    
+    # Pattern 2: Tìm phần từ "Chào bạn" đến hết (không có dấu ngoặc kép)
+    chao_ban_pattern = re.compile(r'(Chào bạn.*?)(?=\n\n|\nTôi hy vọng|\nNếu bạn|$)', re.IGNORECASE | re.DOTALL)
+    match = chao_ban_pattern.search(text)
+    
+    if match:
+        return match.group(1).strip()
+    
+    # Pattern 3: Tìm phần trong dấu ngoặc kép đầu tiên
+    quote_pattern = re.compile(r'"([^"]*)"', re.DOTALL)
+    quote_match = quote_pattern.search(text)
+    
+    if quote_match:
+        return quote_match.group(1).strip()
+    
+    # Pattern 4: Nếu không có pattern nào khớp, trả về text đã clean
+    # Loại bỏ các phần giải thích thêm ở cuối
+    lines = text.split('\n')
+    main_lines = []
+    for line in lines:
+        line = line.strip()
+        if line and not any(keyword in line.lower() for keyword in [
+            'tôi hy vọng', 'nếu bạn cần', 'hãy cho tôi biết', 'cảm ơn bạn'
+        ]):
+            main_lines.append(line)
+        elif line and any(keyword in line.lower() for keyword in [
+            'tôi hy vọng', 'nếu bạn cần', 'hãy cho tôi biết', 'cảm ơn bạn'
+        ]):
+            break
+    
+    result = '\n'.join(main_lines).strip()
+    return result if result else text
+
 @app.post("/chat", response_model=ChatResponse)
 async def handle_chat(req: ChatRequest):
     user_input = req.user_input
 
     print("User input:", user_input)
-    return ChatResponse(
-        bot_response="Tôi rất tiếc khi nghe điều đó. Bạn có muốn chia sẻ thêm không?",
-    )
+    
+    try:
+        # Gọi Model Server
+        model_server_url = "http://localhost:8001/model/generate/"
+        payload = {
+            "prompt": f"Bạn là một chatbot hỗ trợ tâm lý thân thiện và cảm thông. Hãy trả lời người dùng một cách nhẹ nhàng, hỗ trợ và chuyên nghiệp. Bắt đầu câu trả lời bằng 'Chào bạn' và chỉ đưa ra nội dung chính, không cần giải thích thêm hay kết luận.\n\nUser: {user_input}\n\nAssistant:",
+            "max_new_tokens": 1024
+        }
+        
+        response = requests.post(model_server_url, json=payload, timeout=30)
+        
+        if response.status_code == 200:
+            # Lấy response text từ streaming response
+            raw_response = response.text
+            
+            # Trích xuất phần nội dung chính từ "Chào bạn..."
+            final_response = extract_main_response(raw_response)
+            
+            return ChatResponse(
+                bot_response=final_response,
+            )
+        else:
+            logger.error(f"Model Server error: {response.status_code}")
+            return ChatResponse(
+                bot_response="Xin lỗi, tôi gặp lỗi khi xử lý yêu cầu của bạn. Vui lòng thử lại.",
+            )
+            
+    except Exception as e:
+        logger.error(f"Error in chat endpoint: {e}")
+        return ChatResponse(
+            bot_response="Xin lỗi, tôi gặp lỗi khi xử lý yêu cầu của bạn. Vui lòng thử lại.",
+        )
 #     """
 #     Enhanced chat handler with comprehensive risk assessment
 #     LƯU Ý: Mọi request chat đều PHẢI routing qua Gating Router trước khi xử lý tiếp!

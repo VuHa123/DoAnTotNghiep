@@ -4,6 +4,7 @@ import requests
 from utils.api_manager import api_manager
 
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent"
+PROMPT_LENGTH_THRESHOLD = 800
 
 def log_prompt_debug(prompt: str, source: str = "unknown"):
     """Log prompt for debugging purposes"""
@@ -12,18 +13,6 @@ def log_prompt_debug(prompt: str, source: str = "unknown"):
     print(f"[PROMPT_DEBUG] Preview: {prompt[:200]}{'...' if len(prompt) > 200 else ''}")
     print(f"[PROMPT_DEBUG] {'='*50}")
 
-def build_prompt(user_message: str, mental_state: str, sentiment_intensity: str) -> str:
-    instruction = (
-        "Bạn là một chuyên gia tâm lý. Hãy trả lời người dùng với giọng điệu nhẹ nhàng, đồng cảm. "
-        "Dựa vào trạng thái tâm lý và mức độ cảm xúc của họ."
-    )
-    input_text = (
-        f"Tin nhắn: {user_message}\n"
-        f"Trạng thái tâm lý: {mental_state}\n"
-        f"Mức độ cảm xúc: {sentiment_intensity}\n"
-        "Phản hồi:"
-    )
-    return f"{instruction}\n{input_text}"
 
 # Helper to cache label descriptions
 _label_desc_cache = None
@@ -43,7 +32,7 @@ def get_label_descriptions():
             }
     return _label_desc_cache
 
-def call_gemini_build_prompt(obj: dict) -> str:
+def call_gemini_build_prompt(obj: dict, base_prompt: str = None) -> str:
     """
     Gửi thông tin sang Gemini để tạo prompt tối ưu cho LLM.
     Sử dụng build_prompt_from_object để tạo prompt có cấu trúc, sau đó gửi cho Gemini tối ưu hóa.
@@ -54,12 +43,18 @@ def call_gemini_build_prompt(obj: dict) -> str:
         print(f"[GEMINI] ❌ No valid API key found")
         return "[Lỗi: Không có Gemini API key hợp lệ]"
     
-    # Sử dụng build_prompt_from_object để tạo prompt có cấu trúc
-    base_prompt = build_prompt_from_object(obj, include_template=False)
+    # Sử dụng base_prompt nếu được truyền, nếu không thì tạo mới
+    if base_prompt is None:
+        base_prompt = build_prompt_from_object(obj, include_template=False)
     
     # Thêm yêu cầu cho Gemini
-    structured_prompt = f"{base_prompt}\n\n=== YÊU CẦU CHO GEMINI ===\nDựa trên tất cả thông tin trên, hãy tạo một prompt hoàn chỉnh và tối ưu để LLM có thể trả lời tốt nhất cho người dùng. Prompt phải:\n- Bao gồm đầy đủ context quan trọng\n- Có cấu trúc rõ ràng, dễ hiểu\n- Tập trung vào việc hỗ trợ tâm lý hiệu quả\n- Không quá dài, nhưng đầy đủ thông tin cần thiết"
-    
+    structured_prompt = (
+        f"{base_prompt}\n\n"
+        "=== YÊU CẦU CHO GEMINI ===\n"
+        "Hãy rút gọn prompt trên để súc tích nhưng KHÔNG mất thông tin quan trọng.\n"
+        "ĐẶC BIỆT nhấn mạnh câu hỏi hiện tại của NGƯỜI DÙNG (đặt cuối prompt, dễ thấy).\n"
+        "Không thêm thông tin mới, không thay đổi ngữ nghĩa."
+    )
     headers = {"Content-Type": "application/json"}
     payload = {
         "contents": [
@@ -105,49 +100,54 @@ def call_gemini_build_prompt(obj: dict) -> str:
         print(f"[GEMINI] ❌ Exception: {error_msg}")
         return error_msg
 
-def build_prompt_from_object(obj: dict, include_template=True) -> str:
+def build_prompt_from_object(obj: dict, include_template=True, minimal_mode: bool = True) -> str:
     """
     Build a prompt string from a structured object.
+    
+    Args:
+        obj: Dictionary containing prompt structure
+        include_template: If True, call Gemini when prompt is too long (>800 chars)
+        minimal_mode: If True, use minimal context (no descriptions, only 1-2 history)
+    
     obj: {
         "instruction": str,
         "input": str,
         "context": {
             "mental_state": str,
             "sentiment_intensity": str,
-            "risk_level": str,
             "history": list[str],  # List of user messages (not bot responses)
+            "knowledge": list[str],  # RAG knowledge chunks
             ...
         }
     }
     """
     label_desc = get_label_descriptions()
-    DEFAULT_INSTRUCTION = "Bạn là một trợ lý tâm lý chuyên nghiệp. Hãy lắng nghe, đồng cảm và phản hồi nhẹ nhàng. Tránh phán xét và đưa ra gợi ý hữu ích."
+    DEFAULT_INSTRUCTION = "Bạn là một trợ lý tâm lý chuyên nghiệp. Hãy lắng nghe, đồng cảm và phản hồi nhẹ nhàng. Tránh phán xét và đưa ra gợi ý hữu ích. Bắt đầu câu trả lời bằng 'Chào bạn' và chỉ đưa ra nội dung chính, không cần giải thích thêm hay kết luận."
     instruction = obj.get("instruction", DEFAULT_INSTRUCTION)
     input_text = obj.get("input", "")
     context = obj.get("context", {})
     mental_state = context.get("mental_state", "")
     sentiment = context.get("sentiment_intensity", "")
-    risk_level = context.get("risk_level", "")
     history = context.get("history", [])
     knowledge = context.get("knowledge", [])
 
+    if minimal_mode:
+        history = history[-2:]  # Chỉ lấy 1-2 history gần nhất
+    
     # Build context information
     context_lines = []
     if mental_state:
         context_lines.append(f"- Trạng thái tâm lý: {mental_state}")
-        desc = label_desc["mental_state_label"].get(mental_state)
-        if desc:
-            context_lines.append(f"  → {desc}")
+        if not minimal_mode:  # Chỉ thêm mô tả khi không phải minimal mode
+            desc = label_desc["mental_state_label"].get(mental_state)
+            if desc:
+                context_lines.append(f"  → {desc}")
     if sentiment:
         context_lines.append(f"- Cảm xúc: {sentiment}")
-        desc = label_desc["sentiment_intensity_label"].get(str(sentiment))
-        if desc:
-            context_lines.append(f"  → {desc}")
-    if risk_level:
-        context_lines.append(f"- Mức độ rủi ro: {risk_level}")
-        desc = label_desc["gating_label"].get(risk_level)
-        if desc:
-            context_lines.append(f"  → {desc}")
+        if not minimal_mode:  # Chỉ thêm mô tả khi không phải minimal mode
+            desc = label_desc["sentiment_intensity_label"].get(str(sentiment))
+            if desc:
+                context_lines.append(f"  → {desc}")
     if knowledge:
         context_lines.append("Kiến thức liên quan:")
         for idx, chunk in enumerate(knowledge, 1):
@@ -157,41 +157,31 @@ def build_prompt_from_object(obj: dict, include_template=True) -> str:
         for i, user_msg in enumerate(history, 1):
             context_lines.append(f"[{i}] Người dùng: {user_msg}")
     
-    # Build input content
-    input_content = []
-    if context_lines:
-        input_content.extend(context_lines)
-        input_content.append("")
-    input_content.append(f"Người dùng: {input_text}")
-    input_content.append("Trợ lý:")
-    
-    input_text_final = "\n".join(input_content)
+    parts = [
+        instruction,
+        "",
+        "=== THÔNG TIN NGỮ CẢNH ===" if context_lines else "",
+        *context_lines,
+        "",
+        f"Người dùng: {input_text}",
+        "Trợ lý:"
+    ]
+    prompt_raw = "\n".join([p for p in parts if p])
 
-    if include_template:
-        # Gọi Gemini để sinh prompt tối ưu
-        print(f"[PROMPT_BUILDER] 🚀 Calling Gemini to optimize prompt...")
-        gemini_prompt = call_gemini_build_prompt(obj)
-        print(f"[PROMPT_BUILDER] ✅ Gemini processing completed")
-        return gemini_prompt
-    else:
-        # Return without template markers - tạo prompt có cấu trúc tốt hơn
-        print(f"[PROMPT_BUILDER] 📝 Using direct prompt (no Gemini)")
-        
-        # Tạo prompt có cấu trúc rõ ràng
-        prompt_parts = []
-        prompt_parts.append(instruction)
-        prompt_parts.append("")
-        
-        # Thêm context nếu có
-        if context_lines:
-            prompt_parts.append("=== THÔNG TIN NGỮ CẢNH ===")
-            prompt_parts.extend(context_lines)
-            prompt_parts.append("")
-        
-        prompt_parts.append("=== CUỘC HỘI THOẠI ===")
-        prompt_parts.append(f"Người dùng: {input_text}")
-        prompt_parts.append("Trợ lý:")
-        
-        final_prompt = "\n".join(prompt_parts)
-        log_prompt_debug(final_prompt, "Direct")
-        return final_prompt
+    # --------- Gọi Gemini NẾU rất dài ----------
+    if include_template and len(prompt_raw) > PROMPT_LENGTH_THRESHOLD:
+        print(f"[PROMPT_BUILDER] 📏 Prompt dài ({len(prompt_raw)} chars), gọi Gemini để tối ưu...")
+        return call_gemini_build_prompt(
+            obj,
+            base_prompt=prompt_raw   # truyền prompt đã ghép
+        )
+
+    print(f"[PROMPT_BUILDER] ✅ Prompt ngắn ({len(prompt_raw)} chars), sử dụng trực tiếp")
+    
+    # Hiển thị prompt hoàn chỉnh
+    print(f"[PROMPT_BUILDER] 📝 FINAL PROMPT:")
+    print(f"[PROMPT_BUILDER] {'='*60}")
+    print(prompt_raw)
+    print(f"[PROMPT_BUILDER] {'='*60}")
+    
+    return prompt_raw

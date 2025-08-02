@@ -10,9 +10,17 @@ class MessageRouter:
         probs = self.quick_check.predict_proba(message)
         confidence_emergency = probs["emergency"]
 
+        print(f"[MESSAGE_ROUTER] 🚦 Routing decision:")
+        print(f"[MESSAGE_ROUTER] - threshold_safe: {self.threshold_safe}")
+        print(f"[MESSAGE_ROUTER] - threshold_risk: {self.threshold_risk}")
+        print(f"[MESSAGE_ROUTER] - confidence_emergency: {confidence_emergency:.3f}")
+
         if confidence_emergency >= self.threshold_risk:
-            return "emergency", confidence_emergency
+            result = "emergency", confidence_emergency
         elif confidence_emergency >= self.threshold_safe / 2:
-            return "risky", confidence_emergency
+            result = "risky", confidence_emergency
         else:
-            return "normal", 1.0 - confidence_emergency
+            result = "normal", 1.0 - confidence_emergency
+            
+        print(f"[MESSAGE_ROUTER] ✅ Final decision: {result[0]} (confidence: {result[1]:.3f})")
+        return result
