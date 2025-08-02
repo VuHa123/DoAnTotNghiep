@@ -587,7 +587,7 @@
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
 <script>
-  const apiUrl = "https://setup-mentioned-shannon-quote.trycloudflare.com/model/generate/";
+  const apiUrl = "https://manual-infants-trinity-descending.trycloudflare.com/chat";
   const chatBox = document.getElementById("chat-box");
   const promptInput = document.getElementById("prompt");
   const sendBtn = document.getElementById("send-btn");
@@ -717,7 +717,8 @@
       const response = await fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: prompt, max_new_tokens: 1024 })
+        body: JSON.stringify({ user_input: prompt,
+                                history: [] })
       });
 
       const reader = response.body.getReader();

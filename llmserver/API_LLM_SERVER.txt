@@ -1,1 +1,1 @@
-https://setup-mentioned-shannon-quote.trycloudflare.com
+http://localhost:8080

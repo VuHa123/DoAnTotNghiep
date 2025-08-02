@@ -4,7 +4,8 @@ import json
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from services.mental_state_classifier.utils.text_preprocessor import clean_text
 from services.common_schemas import MentalStateOutput
-
+import sys
+sys.stdout.reconfigure(encoding='utf-8')
 # Đường dẫn
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 MODEL_DIR = os.path.join(BASE_DIR, "models", "weights", "mental_state")
