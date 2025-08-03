@@ -866,11 +866,38 @@
     
     const likeBtn = document.createElement('button');
     likeBtn.innerHTML = '👍';
-    likeBtn.onclick = () => {
-      likeBtn.classList.add('liked');
-      dislikeBtn.classList.remove('disliked');
-      submitFeedback(sessionId, userInput, botResponse, 'like', riskLevel, emotionLabel, container);
-    };
+    likeBtn.onclick = async () => {
+    likeBtn.classList.add('liked');
+    dislikeBtn.classList.remove('disliked');
+
+    try {
+      const response = await fetch('https://fiji-ken-observations-shoes.trycloudflare.com/feedback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          session_id: sessionId,
+          user_input: userInput,
+          bot_response: botResponse,
+          feedback_type: 'like',
+          user_feedback_text: null,
+          risk_level: riskLevel || null,
+          emotion_label: emotionLabel || null
+        })
+      });
+
+      if (response.ok) {
+        container.innerHTML = '<div class="feedback-thanks">Cảm ơn bạn đã đánh giá tích cực! 💚</div>';
+      } else {
+        throw new Error('Không gửi được phản hồi');
+      }
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+      alert('Có lỗi xảy ra khi gửi phản hồi. Vui lòng thử lại.');
+    }
+  };
+
     
     const dislikeBtn = document.createElement('button');
     dislikeBtn.innerHTML = '👎';
