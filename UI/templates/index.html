@@ -549,30 +549,38 @@
 
     /* Feedback styles */
     .feedback {
-      margin-top: 10px;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 5px;
+      margin-top: 20px;
+      padding: 12px 16px;
+      border-radius: 12px;
       display: flex;
       align-items: center;
-      gap: 10px;
-      background: #f8f9fa;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      width: fit-content;
+      margin-left: auto;
+      margin-right: auto;
     }
 
     .feedback button {
       background: none;
       border: none;
-      font-size: 20px;
+      font-size: 24px;
       cursor: pointer;
-      padding: 5px 10px;
-      border-radius: 3px;
+      padding: 8px 16px;
+      border-radius: 8px;
       transition: all 0.2s ease;
       transform: scale(1);
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(10px);
     }
 
     .feedback button:hover {
-      background-color: #e9ecef;
+      background: rgba(255, 255, 255, 0.9);
       transform: scale(1.1);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     }
 
     .feedback button:active {
@@ -628,7 +636,7 @@
     .feedback-submit {
       padding: 6px 12px;
       background: #007bff;
-      color: white;
+      color: black;
       border: none;
       border-radius: 3px;
       cursor: pointer;
@@ -653,6 +661,60 @@
     .feedback-hidden {
       display: none;
     }
+    .message.bot .feedback {
+      margin-top: 8px;
+      align-self: flex-end;
+      display: flex;
+      flex-direction: row;
+      justify-content: flex-end;
+      gap: 8px;
+      background: transparent;
+      box-shadow: none;
+      border: none;
+      padding: 0;
+    }
+
+    .message.bot .feedback-form {
+      margin-top: 6px;
+      width: 100%;
+      max-width: 800px;
+      padding: 10px;
+      background: white;
+      border-radius: 12px;
+      border: 1px solid #ccc;
+      align-self: flex-end;
+    }
+    /* Container chứa nút like/dislike */
+.message-content .feedback {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* Nút */
+.message-content .feedback button {
+  font-size: 20px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid #ddd;
+  padding: 4px 10px;
+}
+
+/* Form góp ý hiển thị sau nút 👎 */
+.message-content .feedback-form {
+  width: 100%;
+  max-width: 400px;
+  margin-top: 8px;
+  align-self: flex-end;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+
+
   </style>
 </head>
 <body>
@@ -709,7 +771,7 @@
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
 <script>
-  const apiUrl = "https://manual-infants-trinity-descending.trycloudflare.com/chat";
+  const apiUrl = "http://localhost:8000/chat";
   const chatBox = document.getElementById("chat-box");
   const promptInput = document.getElementById("prompt");
   const sendBtn = document.getElementById("send-btn");
@@ -748,7 +810,7 @@
     }
   }
 
-  function createMessage(role, content, sessionId = null, userInput = null, riskLevel = null, emotionLabel = null) {
+  function createMessage(role, content = '', sessionId = null, userInput = null, riskLevel = null, emotionLabel = null) {
     hideWelcomeScreen();
 
     const message = document.createElement('div');
@@ -764,38 +826,38 @@
     const contentDiv = document.createElement('div');
     contentDiv.className = 'message-content';
 
-    let processedContent = content;
-
-    if (role === 'user') {
-      contentDiv.innerHTML = marked.parse(processedContent);
-    } else {
-      // Xử lý xuống dòng cho bullet points
-      processedContent = processedContent.replace(/(?<!\w)- /g, '\n- ');
-      // Xử lý xuống dòng cho asterisk lists
-      processedContent = processedContent.replace(/(?<!\*)\* (?!\*)([^\n]+)/g, '\n* $1');
-      // Xử lý xuống dòng cho bold text
-      processedContent = processedContent.replace(/(?<!\n)(\*\*[^\n]+?\*\*)/g, '\n$1');
-      // Xử lý xuống dòng cho numbered lists
-      processedContent = processedContent.replace(/(?<!\n)(\d+\.\s+)/g, '\n$1');
-      // Xử lý xuống dòng cho labels
-      processedContent = processedContent.replace(/\*\*([^*]+):\*\*/g, '\n\n**$1:**');
-      
+    if (content) {
+      let processedContent = content;
+      if (role === 'bot') {
+        // Xử lý xuống dòng cho bullet points
+        processedContent = processedContent.replace(/(?<!\w)- /g, '\n- ');
+        // Xử lý xuống dòng cho asterisk lists
+        processedContent = processedContent.replace(/(?<!\*)\* (?!\*)([^\n]+)/g, '\n* $1');
+        // Xử lý xuống dòng cho bold text
+        processedContent = processedContent.replace(/(?<!\n)(\*\*[^\n]+?\*\*)/g, '\n$1');
+        // Xử lý xuống dòng cho numbered lists
+        processedContent = processedContent.replace(/(?<!\n)(\d+\.\s+)/g, '\n$1');
+        // Xử lý xuống dòng cho labels
+        processedContent = processedContent.replace(/\*\*([^*]+):\*\*/g, '\n\n**$1:**');
+      }
       contentDiv.innerHTML = marked.parse(processedContent);
     }
 
     messageInner.appendChild(avatar);
     messageInner.appendChild(contentDiv);
     
-    // Thêm feedback container cho tin nhắn bot
-    if (role === 'bot' && sessionId && userInput) {
-      const feedbackContainer = createFeedbackContainer(sessionId, userInput, content, riskLevel, emotionLabel);
-      messageInner.appendChild(feedbackContainer);
+    // Only add feedback container after full response is received
+    if (role === 'bot') {
+      message.dataset.sessionId = sessionId;
+      message.dataset.userInput = userInput || '';
+      message.dataset.riskLevel = riskLevel || '';
+      message.dataset.emotionLabel = emotionLabel || '';
     }
     
     message.appendChild(messageInner);
     chatBox.appendChild(message);
     chatBox.scrollTop = chatBox.scrollHeight;
-    return contentDiv;
+    return message;
   }
 
   function createFeedbackContainer(sessionId, userInput, botResponse, riskLevel, emotionLabel) {
@@ -840,54 +902,47 @@
     const submitBtn = document.createElement('button');
     submitBtn.className = 'feedback-submit';
     submitBtn.textContent = 'Gửi phản hồi';
-    submitBtn.onclick = () => {
+    submitBtn.onclick = async () => {
       const feedbackText = textarea.value.trim();
-      submitFeedback(sessionId, userInput, botResponse, feedbackType, riskLevel, emotionLabel, container, feedbackText);
+      
+      try {
+        const response = await fetch('http://localhost:8000/feedback', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            session_id: sessionId,
+            user_input: userInput,
+            bot_response: botResponse,
+            feedback_type: feedbackType,
+            user_feedback_text: feedbackText || null,
+            risk_level: riskLevel || null,
+            emotion_label: emotionLabel || null
+          })
+        });
+
+        if (response.ok) {
+          container.innerHTML = '<div class="feedback-thanks">Cảm ơn bạn đã đưa ra phản hồi! 💚</div>';
+        } else {
+          throw new Error('Failed to submit feedback');
+        }
+      } catch (error) {
+        console.error('Error submitting feedback:', error);
+        alert('Có lỗi xảy ra khi gửi phản hồi. Vui lòng thử lại.');
+      }
     };
     
     form.appendChild(textarea);
     form.appendChild(submitBtn);
     container.appendChild(form);
+    
+    // Scroll to show the feedback form
+    setTimeout(() => {
+      container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
   }
 
-  async function submitFeedback(sessionId, userInput, botResponse, feedbackType, riskLevel, emotionLabel, container, feedbackText = '') {
-    try {
-      // Disable tất cả nút trong container
-      const buttons = container.querySelectorAll('button');
-      buttons.forEach(btn => btn.disabled = true);
-      
-      const response = await fetch('/feedback', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          session_id: sessionId,
-          user_input: userInput,
-          bot_response: botResponse,
-          feedback_type: feedbackType,
-          user_feedback_text: feedbackText || null,
-          risk_level: riskLevel || null,
-          emotion_label: emotionLabel || null
-        })
-      });
-      
-      if (response.ok) {
-        // Hiển thị thông báo cảm ơn
-        container.innerHTML = '<div class="feedback-thanks">Cảm ơn bạn đã đưa ra phản hồi! 💚</div>';
-      } else {
-        throw new Error('Failed to submit feedback');
-      }
-    } catch (error) {
-      console.error('Error submitting feedback:', error);
-      // Hiển thị lại nút feedback nếu có lỗi
-      const buttons = container.querySelectorAll('button');
-      buttons.forEach(btn => {
-        btn.disabled = false;
-        btn.style.display = 'block';
-      });
-    }
-  }
 
   function showTypingIndicator() {
     hideWelcomeScreen();
@@ -953,64 +1008,89 @@
     promptInput.style.height = 'auto';
 
     try {
-      // Debug: Log what we're sending
-      console.log("Current chatHistory before sending:", chatHistory);
-      console.log("Current prompt:", prompt);
-      
-      // Only send user messages as history (not bot responses)
+      // Prepare request data
       const requestBody = {
         user_input: prompt,
-        history: chatHistory.slice(-5), // Keep last 5 user messages for context
+        history: chatHistory.slice(-5),
         session_id: sessionId
       };
-      console.log("Sending request with history:", requestBody.history);
-      console.log("Full request body:", requestBody);
-      
-      // Fetch JSON response from API gateway
+
+      // Call API with streaming
       const response = await fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody)
       });
 
+      // Handle HTTP errors
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          `API Error ${response.status}: ${errorData.message || response.statusText}`
+        );
       }
 
-      // Remove typing indicator and create bot message
+      // Remove typing indicator
       typingIndicator.remove();
-      
-      // Parse JSON response
-      const responseData = await response.json();
-      const botResponse = responseData.bot_response || 'Xin lỗi, tôi không thể tạo ra phản hồi phù hợp.';
-      const riskLevel = responseData.risk_level || 'normal';
-      const emotionLabel = responseData.emotion_label || 'neutral';
-      
-      const botMsg = createMessage('bot', botResponse, sessionId, prompt, riskLevel, emotionLabel);
+
+      // Create bot message container
+      const botMsg = createMessage('bot', '', sessionId, prompt);
       const contentDiv = botMsg.querySelector('.message-content');
       
-      // Add only user message to history AFTER getting response
+      // Update chat history
       chatHistory.push(prompt);
-      
-      // Update the message content with markdown
-      contentDiv.innerHTML = marked.parse(botResponse);
-      chatBox.scrollTop = chatBox.scrollHeight;
-      document.querySelectorAll('pre code').forEach(hljs.highlightElement);
-      
 
-      
-      // Scroll to bottom
+      // Process streaming response
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullResponse = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        fullResponse += chunk;
+
+        // Update UI with each chunk
+        contentDiv.innerHTML = marked.parse(fullResponse);
+        chatBox.scrollTop = chatBox.scrollHeight;
+        
+        // Small delay for smoother animation
+        await new Promise(resolve => setTimeout(resolve, 20));
+      }
+
+      // Final update with complete response
+      contentDiv.innerHTML = marked.parse(fullResponse);
+      document.querySelectorAll('pre code').forEach(hljs.highlightElement);
       chatBox.scrollTop = chatBox.scrollHeight;
-      
-      // Log additional info to console for monitoring
-      console.log("Chat Response completed:", {
-        session_id: sessionId,
-        response_length: botResponse.length
-      });
-      
+
+      // Add feedback container after full response
+      if (botMsg.dataset.sessionId && botMsg.dataset.userInput) {
+        const feedbackContainer = createFeedbackContainer(
+          botMsg.dataset.sessionId,
+          botMsg.dataset.userInput,
+          fullResponse,
+          botMsg.dataset.riskLevel,
+          botMsg.dataset.emotionLabel
+        );
+        // Thêm feedback dưới phần content bot, không phải trong .message-inner
+        contentDiv.appendChild(feedbackContainer);
+      }
+
+
     } catch (error) {
-      const errorMsg = createMessage('bot', '**Lỗi:** Không thể kết nối với máy chủ. Vui lòng thử lại sau.');
-      console.error('Error:', error);
+      // Remove typing indicator on error
+      if (typingIndicator && typingIndicator.remove) {
+        typingIndicator.remove();
+      }
+      
+      // Show error message
+      createMessage('bot', 
+        `**Lỗi:** ${error.message || 'Không thể kết nối với máy chủ. Vui lòng thử lại sau.'}`
+      );
+      
+      console.error("API Call Failed:", error);
     } finally {
       isTyping = false;
       sendBtn.disabled = !promptInput.value.trim();
