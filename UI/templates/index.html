@@ -507,6 +507,21 @@
       .logo {
         height: 28px;
       }
+
+      .feedback {
+        padding: 8px;
+        gap: 8px;
+      }
+
+      .feedback button {
+        font-size: 18px;
+        padding: 4px 8px;
+      }
+
+      .feedback-textarea {
+        font-size: 13px;
+        min-height: 50px;
+      }
     }
 
     /* Animation for messages */
@@ -533,115 +548,105 @@
     }
 
     /* Feedback styles */
-    .feedback-container {
-      margin-top: 16px;
-      padding: 16px;
-      background: rgba(255, 255, 255, 0.8);
-      border-radius: 12px;
-      border: 1px solid rgba(102, 126, 234, 0.2);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    }
-
-    .feedback-question {
-      font-size: 14px;
-      color: #4a5568;
-      margin-bottom: 12px;
-      font-weight: 500;
-    }
-
-    .feedback-buttons {
+    .feedback {
+      margin-top: 10px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
       display: flex;
-      gap: 12px;
       align-items: center;
+      gap: 10px;
+      background: #f8f9fa;
     }
 
-    .feedback-btn {
-      padding: 8px 20px;
-      border: 2px solid transparent;
-      border-radius: 12px;
+    .feedback button {
+      background: none;
+      border: none;
+      font-size: 20px;
       cursor: pointer;
-      font-size: 14px;
-      font-weight: 600;
-      transition: all 0.3s ease;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      padding: 5px 10px;
+      border-radius: 3px;
+      transition: all 0.2s ease;
+      transform: scale(1);
     }
 
-    .feedback-btn.like {
-      background: linear-gradient(135deg, #667eea, #764ba2);
-      color: white;
+    .feedback button:hover {
+      background-color: #e9ecef;
+      transform: scale(1.1);
     }
 
-    .feedback-btn.like:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(102,126,234,0.4);
+    .feedback button:active {
+      background-color: #dee2e6;
+      transform: scale(0.95);
     }
 
-    .feedback-btn.dislike {
-      background: linear-gradient(135deg, #f56565, #e53e3e);
-      color: white;
+    .feedback button.liked {
+      color: #28a745;
     }
 
-    .feedback-btn.dislike:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(245,101,101,0.4);
+    .feedback button.disliked {
+      color: #dc3545;
     }
 
-    .feedback-btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      transform: none !important;
+    .feedback-form {
+      margin-top: 10px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      background: white;
+      animation: slideDown 0.3s ease-out;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .feedback-textarea {
-      margin-top: 12px;
       width: 100%;
-      padding: 12px;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 3px;
       font-size: 14px;
       font-family: inherit;
       resize: vertical;
-      min-height: 80px;
-      background: white;
+      min-height: 60px;
+      margin-bottom: 8px;
     }
 
     .feedback-textarea:focus {
       outline: none;
-      border-color: #667eea;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      border-color: #007bff;
     }
 
     .feedback-submit {
-      margin-top: 8px;
-      padding: 8px 16px;
-      background: linear-gradient(135deg, #667eea, #764ba2);
+      padding: 6px 12px;
+      background: #007bff;
       color: white;
       border: none;
-      border-radius: 6px;
+      border-radius: 3px;
       cursor: pointer;
       font-size: 14px;
-      font-weight: 500;
-      transition: all 0.2s ease;
     }
 
     .feedback-submit:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+      background: #0056b3;
     }
 
     .feedback-submit:disabled {
-      opacity: 0.6;
+      background: #6c757d;
       cursor: not-allowed;
-      transform: none !important;
     }
 
     .feedback-thanks {
-      color: #48bb78;
+      color: #28a745;
       font-size: 14px;
-      font-weight: 500;
       margin-top: 8px;
     }
 
@@ -795,38 +800,34 @@
 
   function createFeedbackContainer(sessionId, userInput, botResponse, riskLevel, emotionLabel) {
     const container = document.createElement('div');
-    container.className = 'feedback-container';
-    
-    const question = document.createElement('div');
-    question.className = 'feedback-question';
-    question.textContent = 'Bạn có hài lòng với phản hồi này không?';
-    
-    const buttons = document.createElement('div');
-    buttons.className = 'feedback-buttons';
+    container.className = 'feedback';
     
     const likeBtn = document.createElement('button');
-    likeBtn.className = 'feedback-btn like';
-    likeBtn.innerHTML = '👍 Hài lòng';
-    likeBtn.onclick = () => submitFeedback(sessionId, userInput, botResponse, 'like', riskLevel, emotionLabel, container);
+    likeBtn.innerHTML = '👍';
+    likeBtn.onclick = () => {
+      likeBtn.classList.add('liked');
+      dislikeBtn.classList.remove('disliked');
+      submitFeedback(sessionId, userInput, botResponse, 'like', riskLevel, emotionLabel, container);
+    };
     
     const dislikeBtn = document.createElement('button');
-    dislikeBtn.className = 'feedback-btn dislike';
-    dislikeBtn.innerHTML = '👎 Không hài lòng';
-    dislikeBtn.onclick = () => showFeedbackForm(sessionId, userInput, botResponse, 'dislike', riskLevel, emotionLabel, container);
+    dislikeBtn.innerHTML = '👎';
+    dislikeBtn.onclick = () => {
+      dislikeBtn.classList.add('disliked');
+      likeBtn.classList.remove('liked');
+      showFeedbackForm(sessionId, userInput, botResponse, 'dislike', riskLevel, emotionLabel, container);
+    };
     
-    buttons.appendChild(likeBtn);
-    buttons.appendChild(dislikeBtn);
-    
-    container.appendChild(question);
-    container.appendChild(buttons);
+    container.appendChild(likeBtn);
+    container.appendChild(dislikeBtn);
     
     return container;
   }
 
   function showFeedbackForm(sessionId, userInput, botResponse, feedbackType, riskLevel, emotionLabel, container) {
     // Ẩn nút feedback
-    const buttons = container.querySelector('.feedback-buttons');
-    buttons.style.display = 'none';
+    const buttons = container.querySelectorAll('button');
+    buttons.forEach(btn => btn.style.display = 'none');
     
     // Tạo form nhập lý do
     const form = document.createElement('div');
@@ -880,11 +881,11 @@
     } catch (error) {
       console.error('Error submitting feedback:', error);
       // Hiển thị lại nút feedback nếu có lỗi
-      const buttons = container.querySelector('.feedback-buttons');
-      if (buttons) {
-        buttons.style.display = 'flex';
-        buttons.querySelectorAll('button').forEach(btn => btn.disabled = false);
-      }
+      const buttons = container.querySelectorAll('button');
+      buttons.forEach(btn => {
+        btn.disabled = false;
+        btn.style.display = 'block';
+      });
     }
   }
 
@@ -996,10 +997,7 @@
       chatBox.scrollTop = chatBox.scrollHeight;
       document.querySelectorAll('pre code').forEach(hljs.highlightElement);
       
-      // Add feedback container
-      const messageInner = botMsg.querySelector('.message-inner');
-      const feedbackContainer = createFeedbackContainer(sessionId, prompt, botResponse, riskLevel, emotionLabel);
-      messageInner.appendChild(feedbackContainer);
+
       
       // Scroll to bottom
       chatBox.scrollTop = chatBox.scrollHeight;
