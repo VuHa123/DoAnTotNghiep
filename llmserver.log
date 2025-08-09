@@ -1,12 +1,12 @@
 INFO:     Will watch for changes in these directories: ['D:\\Job\\HaVU\\DoAnTotNghiep\\llmserver']
 INFO:     Uvicorn running on http://127.0.0.1:8080 (Press CTRL+C to quit)
-INFO:     Started reloader process [6084] using WatchFiles
-2025-08-09 19:38:27.684334: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-2025-08-09 19:38:38.137515: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+INFO:     Started reloader process [2620] using WatchFiles
+2025-08-09 19:46:00.529216: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2025-08-09 19:46:03.029525: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
 E:\Python\Lib\site-packages\peft\config.py:162: UserWarning: Unexpected keyword arguments ['alpha_pattern', 'bias', 'corda_config', 'eva_config', 'exclude_modules', 'fan_in_fan_out', 'init_lora_weights', 'layer_replication', 'layers_pattern', 'layers_to_transform', 'loftq_config', 'lora_alpha', 'lora_bias', 'lora_dropout', 'megatron_config', 'megatron_core', 'modules_to_save', 'qalora_group_size', 'r', 'rank_pattern', 'target_modules', 'trainable_token_indices', 'use_dora', 'use_qalora', 'use_rslora'] for class PeftConfig, these are ignored. This probably means that you're loading a configuration file that was saved using a higher version of the library and additional parameters have been introduced since. It is highly recommended to upgrade the PEFT version before continuing (e.g. by running `pip install -U peft`).
   warnings.warn(
 E:\Python\Lib\site-packages\peft\config.py:162: UserWarning: Unexpected keyword arguments ['corda_config', 'qalora_group_size', 'trainable_token_indices', 'use_qalora'] for class LoraConfig, these are ignored. This probably means that you're loading a configuration file that was saved using a higher version of the library and additional parameters have been introduced since. It is highly recommended to upgrade the PEFT version before continuing (e.g. by running `pip install -U peft`).
   warnings.warn(
-INFO:     Started server process [12208]
+INFO:     Started server process [3528]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
