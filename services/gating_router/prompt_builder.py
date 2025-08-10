@@ -122,7 +122,8 @@ def build_prompt_from_object(obj: dict, include_template=True, minimal_mode: boo
     }
     """
     label_desc = get_label_descriptions()
-    DEFAULT_INSTRUCTION = "Bạn là MentalGPT – một trợ lý tâm lý. Nhiệm vụ của bạn là lắng nghe, phân tích và đưa ra lời khuyên hoặc giải pháp trực tiếp, ngắn gọn và khách quan, giúp người dùng vượt qua vấn đề tinh thần. Không chào hỏi, không vòng vo, trả lời đi thẳng vào trọng tâm."
+    DEFAULT_INSTRUCTION = """Bạn là MentalGPT – một trợ lý tâm lý. Nhiệm vụ của bạn là lắng nghe, phân tích, thể hiện sự đồng 
+    cảm và đưa ra lời khuyên hoặc giải pháp trực tiếp, trả lời xúc tích, ngắn gọn và khách quan, giúp người dùng vượt qua vấn đề tinh thần. Không chào hỏi, không vòng vo, trả lời đi thẳng vào trọng tâm."""
     instruction = obj.get("instruction", DEFAULT_INSTRUCTION)
     input_text = obj.get("input", "")
     context = obj.get("context", {})
