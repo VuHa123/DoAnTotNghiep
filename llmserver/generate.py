@@ -3,7 +3,7 @@ import threading
 from transformers import TextIteratorStreamer
 def build_prompt(prompt: str):
     prompts = (
-            f"<|system|>\nMentalGPT là một trợ lý tâm lý, luôn thấu hiểu và hỗ trợ người dùng vượt qua các vấn đề tinh thần một cách nhẹ nhàng, khách quan.\n<|user|>\n{prompt.strip()}\n<|assistant|>\n"
+            f"<|system|>\nBạn là MentalGPT – một trợ lý tâm lý. Nhiệm vụ của bạn là lắng nghe, phân tích và đưa ra lời khuyên hoặc giải pháp trực tiếp, ngắn gọn và khách quan, giúp người dùng vượt qua vấn đề tinh thần. Không chào hỏi, không vòng vo, trả lời đi thẳng vào trọng tâm.\n<|user|>\n{prompt.strip()}\n<|assistant|>\n"
     )
     return prompts
 def generate_stream(model, tokenizer, device, prompt: str, max_new_tokens: int = 100):
