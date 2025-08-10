@@ -107,7 +107,7 @@ def build_prompt_from_object(obj: dict, include_template=True, minimal_mode: boo
     Args:
         obj: Dictionary containing prompt structure
         include_template: If True, call Gemini when prompt is too long (>800 chars)
-        minimal_mode: If True, use minimal context (no descriptions, only 1-2 history)
+        minimal_mode: If True, use minimal context (no descriptions, only 3 turns)
     
     obj: {
         "instruction": str,
@@ -115,7 +115,7 @@ def build_prompt_from_object(obj: dict, include_template=True, minimal_mode: boo
         "context": {
             "mental_state": str,
             "sentiment_intensity": str,
-            "history": list[str],  # List of user messages (not bot responses)
+            "history": list[dict],  # List of conversation turns with user and bot messages
             "knowledge": list[str],  # RAG knowledge chunks
             ...
         }
@@ -133,7 +133,14 @@ def build_prompt_from_object(obj: dict, include_template=True, minimal_mode: boo
     knowledge = context.get("knowledge", [])
 
     if minimal_mode:
-        history = history[-2:]  # Chỉ lấy 1-2 history gần nhất
+        # Lấy 3 lượt gần nhất (6 messages: 3 user + 3 bot)
+        if isinstance(history, list) and len(history) > 0:
+            # Nếu history là list of dict (format mới)
+            if isinstance(history[0], dict):
+                history = history[-3:]
+            # Nếu history là list of strings (format cũ - chỉ user messages)
+            else:
+                history = history[-3:]
     
     # Build context information
     context_lines = []
@@ -157,10 +164,23 @@ def build_prompt_from_object(obj: dict, include_template=True, minimal_mode: boo
         # Thêm thông báo khi không có knowledge phù hợp
         context_lines.append("Lưu ý: Không tìm được kiến thức chuyên môn phù hợp cho câu hỏi này.")
         context_lines.append("Hãy trả lời dựa trên kiến thức chung về tâm lý học và sức khỏe tinh thần.")
+    
+    # Xử lý history với format mới (bao gồm cả user và bot messages)
     if history:
-        context_lines.append("Lịch sử hội thoại (các tin nhắn trước đó của người dùng):")
-        for i, user_msg in enumerate(history, 1):
-            context_lines.append(f"[{i}] Người dùng: {user_msg}")
+        context_lines.append("Lịch sử hội thoại (3 lượt gần nhất):")
+        if isinstance(history[0], dict):
+            # Format mới: list of dict với user và bot messages
+            for i, turn in enumerate(history, 1):
+                user_msg = turn.get("user", "")
+                bot_msg = turn.get("bot", "")
+                if user_msg:
+                    context_lines.append(f"[{i}] Người dùng: {user_msg}")
+                if bot_msg:
+                    context_lines.append(f"[{i}] Trợ lý: {bot_msg}")
+        else:
+            # Format cũ: list of strings (chỉ user messages)
+            for i, user_msg in enumerate(history, 1):
+                context_lines.append(f"[{i}] Người dùng: {user_msg}")
     
     parts = [
         instruction,

@@ -66,7 +66,7 @@ except Exception as e:
 # Schema definitions
 class ChatRequest(BaseModel):
     user_input: str
-    history: list[str] = None
+    history: list = None  # Có thể là list[str] (format cũ) hoặc list[dict] (format mới)
     session_id: Optional[str] = None
 
 class ChatResponse(BaseModel):
@@ -140,16 +140,32 @@ async def handle_chat(req: ChatRequest):
         logger.info(f"[chat] 📨 History type: {type(req.history)}")
         
         # Validate history - should not contain current user input
-        if req.history and user_message in req.history:
-            logger.warning(f"[chat] ⚠️ History contains current user input! Filtering out...")
-            # Remove current user input from history if it exists
-            req.history = [msg for msg in req.history if msg != user_message]
-            logger.info(f"[chat] 📨 Filtered history: {req.history}")
-        
-        # Log history for debugging
-        logger.info(f"[chat] 📨 History contains {len(req.history)} user messages")
         if req.history:
-            logger.info(f"[chat] 📨 History messages: {[msg[:50] + '...' if len(msg) > 50 else msg for msg in req.history]}")
+            # Xử lý format mới (list of dict) hoặc format cũ (list of strings)
+            if isinstance(req.history[0], dict):
+                # Format mới: list of dict với user và bot messages
+                logger.info(f"[chat] 📨 Using new history format (list of dict)")
+                # Kiểm tra xem user_message có trong history không
+                for turn in req.history:
+                    if turn.get("user") == user_message:
+                        logger.warning(f"[chat] ⚠️ History contains current user input! Filtering out...")
+                        req.history = [t for t in req.history if t.get("user") != user_message]
+                        break
+                logger.info(f"[chat] 📨 History contains {len(req.history)} conversation turns")
+                if req.history:
+                    history_preview = [f"User: {turn.get('user', '')[:30]}..." for turn in req.history]
+                logger.info(f"[chat] 📨 History turns: {history_preview}")
+            else:
+                # Format cũ: list of strings (chỉ user messages)
+                logger.info(f"[chat] 📨 Using old history format (list of strings)")
+                if user_message in req.history:
+                    logger.warning(f"[chat] ⚠️ History contains current user input! Filtering out...")
+                    req.history = [msg for msg in req.history if msg != user_message]
+                logger.info(f"[chat] 📨 History contains {len(req.history)} user messages")
+                if req.history:
+                    logger.info(f"[chat] 📨 History messages: {[msg[:50] + '...' if len(msg) > 50 else msg for msg in req.history]}")
+        else:
+            logger.info(f"[chat] 📨 No history provided")
         
         # 1. Gating router - đánh giá rủi ro
         logger.info(f"[chat] 🚦 Gating router - đánh giá rủi ro cho: '{user_message[:50]}...'")
@@ -179,11 +195,14 @@ async def handle_chat(req: ChatRequest):
         if knowledge_chunks:
             logger.info(f"[chat] 📊 Điểm re-rank: {[f'{score:.3f}' for score in knowledge_similarity_scores]}")
         # 3. Build prompt object cho LLM
+        # Lấy 3 lượt gần nhất cho tất cả risk levels
+        history_for_prompt = req.history[-3:] if req.history else []
+        
         if risk_level == "normal":
             prompt_obj = {
                 "input": user_message,
                 "context": {
-                    "history": req.history[-1:] if req.history else [],
+                    "history": history_for_prompt,
                     "knowledge": knowledge_texts if knowledge_texts else []  # Trả về rỗng nếu không có knowledge
                 }
             }
@@ -193,7 +212,7 @@ async def handle_chat(req: ChatRequest):
             prompt_obj = {
                 "input": user_message,
                 "context": {
-                    "history": req.history[-2:] if req.history else [],
+                    "history": history_for_prompt,
                     "mental_state": getattr(mental_state_obj, 'mental_state', ''),
                     "sentiment_intensity": getattr(sentiment_obj, 'sentiment', ''),
                     "knowledge": knowledge_texts if knowledge_texts else []  # Trả về rỗng nếu không có knowledge
@@ -211,7 +230,7 @@ async def handle_chat(req: ChatRequest):
             prompt_obj = {
                 "input": user_message,
                 "context": {
-                    "history": req.history[-2:] if req.history else [],
+                    "history": history_for_prompt,
                     "mental_state": getattr(mental_state_obj, 'mental_state', ''),
                     "sentiment_intensity": getattr(sentiment_obj, 'sentiment', ''),
                     "knowledge": knowledge_texts if knowledge_texts else [],  # Trả về rỗng nếu không có knowledge
@@ -222,7 +241,7 @@ async def handle_chat(req: ChatRequest):
             prompt_obj = {
                 "input": user_message,
                 "context": {
-                    "history": req.history[-1:] if req.history else [],
+                    "history": history_for_prompt,
                     "knowledge": knowledge_texts if knowledge_texts else []  # Trả về rỗng nếu không có knowledge
                 }
             }
