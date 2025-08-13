@@ -20,7 +20,7 @@ flowchart TD
     Semantic["Semantic Search<br/>(RAG, truy vấn DB)"]
     DB["Database<br/>(Lưu tri thức, feedback, emergency logs)"]
     Prompt["Prompt Builder<br/>(Tổng hợp thông tin)"]
-    Gemini["Gemini API<br/>(LLM sinh phản hồi)"]
+    Gemini["LLM sinh phản hồi"]
     Clean["Làm sạch phản hồi<br/>(API Gateway)"]
 
     User -->|REST| APIGW
